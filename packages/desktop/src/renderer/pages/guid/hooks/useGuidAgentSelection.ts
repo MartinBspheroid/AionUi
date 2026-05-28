@@ -124,7 +124,9 @@ export function resolveSelectedAcpModel(
 ): string | null {
   if (!backend) return null;
 
-  const preferred = (acpConfig?.[backend] as Record<string, unknown> | undefined)?.preferredModelId as string | undefined;
+  const preferred = (acpConfig?.[backend] as Record<string, unknown> | undefined)?.preferredModelId as
+    | string
+    | undefined;
   const handshakeModels = getHandshakeModelInfo(backend, agents);
 
   if (preferred) {
@@ -524,7 +526,10 @@ export const useGuidAgentSelection = ({
     // The backend persists the last-seen `ModelInfoPayload` (snake_case) on
     // the agent_metadata row, so this is populated across restarts without
     // requiring a fresh session.
-    const handshakeModels = getHandshakeModelInfo(backend, availableAgentsData as unknown as AgentMetadata[] | undefined);
+    const handshakeModels = getHandshakeModelInfo(
+      backend,
+      availableAgentsData as unknown as AgentMetadata[] | undefined
+    );
     if (
       handshakeModels &&
       Array.isArray(handshakeModels.available_models) &&

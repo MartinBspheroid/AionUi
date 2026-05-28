@@ -27,21 +27,13 @@ const hermesAgents: AgentMetadata[] = [
 describe('resolveSelectedAcpModel', () => {
   it('falls back to the Hermes handshake current model when a saved preference is stale', () => {
     expect(
-      resolveSelectedAcpModel(
-        'hermes',
-        { hermes: { preferredModelId: 'openai-codex:gpt-5.4' } },
-        hermesAgents
-      )
+      resolveSelectedAcpModel('hermes', { hermes: { preferredModelId: 'openai-codex:gpt-5.4' } }, hermesAgents)
     ).toBe('openai-codex:gpt-5.3-codex-spark');
   });
 
   it('keeps a saved Hermes preference when the advertised catalog still contains it', () => {
     expect(
-      resolveSelectedAcpModel(
-        'hermes',
-        { hermes: { preferredModelId: 'openai-codex:gpt-5.5' } },
-        hermesAgents
-      )
+      resolveSelectedAcpModel('hermes', { hermes: { preferredModelId: 'openai-codex:gpt-5.5' } }, hermesAgents)
     ).toBe('openai-codex:gpt-5.5');
   });
 
@@ -51,16 +43,12 @@ describe('resolveSelectedAcpModel', () => {
 
   it('preserves a preference when no concrete model catalog is known yet', () => {
     expect(
-      resolveSelectedAcpModel(
-        'hermes',
-        { hermes: { preferredModelId: 'openai-codex:gpt-5.4' } },
-        [
-          {
-            ...hermesAgents[0],
-            handshake: undefined,
-          },
-        ]
-      )
+      resolveSelectedAcpModel('hermes', { hermes: { preferredModelId: 'openai-codex:gpt-5.4' } }, [
+        {
+          ...hermesAgents[0],
+          handshake: undefined,
+        },
+      ])
     ).toBe('openai-codex:gpt-5.4');
   });
 });

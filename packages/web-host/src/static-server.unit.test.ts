@@ -388,7 +388,13 @@ describe('static-server', () => {
           active: number;
           paused: number;
           errors: number;
-          jobs: Array<{ id: string; prompt?: unknown; schedule_display?: string; script?: string; repeat_times?: number | null }>;
+          jobs: Array<{
+            id: string;
+            prompt?: unknown;
+            schedule_display?: string;
+            script?: string;
+            repeat_times?: number | null;
+          }>;
         };
       };
       expect(json.data).toMatchObject({ total: 2, active: 1, paused: 1, errors: 1 });
@@ -487,7 +493,14 @@ else console.log('ran ' + args.join(' '));
         headers: { cookie: 'aionui-session=test' },
       });
       expect(overviewResponse.status).toBe(200);
-      const overview = (await overviewResponse.json()) as { data: { configPath: string; envPath: string; commands: Array<{ id: string }>; overview: { status: { stdout: string }; config: { stdout: string } } } };
+      const overview = (await overviewResponse.json()) as {
+        data: {
+          configPath: string;
+          envPath: string;
+          commands: Array<{ id: string }>;
+          overview: { status: { stdout: string }; config: { stdout: string } };
+        };
+      };
       expect(overview.data.configPath).toBe(`${hermesHome}/config.yaml`);
       expect(overview.data.envPath).toBe(`${hermesHome}/.env`);
       expect(overview.data.commands.some((command) => command.id === 'tools-list')).toBe(true);
