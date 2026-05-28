@@ -6,10 +6,11 @@
 
 import { ipcBridge } from '@/common';
 import { isBackendHttpError } from '@/common/adapter/httpBridge';
-import { Alert, Button, Empty, Spin, Table, Tag, Typography } from '@arco-design/web-react';
+import { Alert, Button, Empty, Table, Tag, Typography } from '@arco-design/web-react';
 import { Refresh } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { PanelHeader, PanelLoading, SectionCard, StatCard } from './components';
 
 type HermesCronJobSummary = {
   id: string;
@@ -107,7 +108,8 @@ const CronJobsPanel: React.FC = () => {
         render: (_value: unknown, record: HermesCronJobSummary) => {
           const hasError = record.last_status === 'error' || !!record.last_error || !!record.last_delivery_error;
           if (hasError) return <Tag color='red'>{t('settings.hermes.cron.status.error')}</Tag>;
-          if (!record.enabled || record.state === 'paused') return <Tag color='orange'>{t('settings.hermes.cron.status.paused')}</Tag>;
+          if (!record.enabled || record.state === 'paused')
+            return <Tag color='orange'>{t('settings.hermes.cron.status.paused')}</Tag>;
           return <Tag color='green'>{t('settings.hermes.cron.status.active')}</Tag>;
         },
       },
@@ -150,7 +152,13 @@ const CronJobsPanel: React.FC = () => {
         title: t('settings.hermes.cron.columns.details'),
         dataIndex: 'details',
         render: (_value: unknown, record: HermesCronJobSummary) => {
-          const details = [record.script, record.no_agent ? 'no-agent' : undefined, record.provider, record.model, record.deliver]
+          const details = [
+            record.script,
+            record.no_agent ? 'no-agent' : undefined,
+            record.provider,
+            record.model,
+            record.deliver,
+          ]
             .filter(Boolean)
             .join(' · ');
           const problem = record.last_error || record.last_delivery_error;
@@ -173,11 +181,7 @@ const CronJobsPanel: React.FC = () => {
   );
 
   if (loading) {
-    return (
-      <div className='h-240px flex items-center justify-center'>
-        <Spin dot />
-      </div>
-    );
+    return <PanelLoading />;
   }
 
   if (unsupported) {
@@ -192,44 +196,44 @@ const CronJobsPanel: React.FC = () => {
 
   return (
     <div className='flex flex-col gap-16px'>
-      <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-12px'>
-        <div className='min-w-0'>
-          <Typography.Title heading={5} className='!mt-0 !mb-4px'>
-            {t('settings.hermes.cron.title')}
-          </Typography.Title>
-          <Typography.Text type='secondary'>{t('settings.hermes.cron.description')}</Typography.Text>
-        </div>
-        <Button icon={<Refresh />} onClick={() => void load()}>
-          {t('common.reload')}
-        </Button>
-      </div>
+      <PanelHeader
+        title={t('settings.hermes.cron.title')}
+        description={t('settings.hermes.cron.description')}
+        action={
+          <Button icon={<Refresh />} onClick={() => void load()}>
+            {t('common.reload')}
+          </Button>
+        }
+      />
 
       <div className='grid grid-cols-2 lg:grid-cols-4 gap-12px'>
-        <div className='rounded-8px bg-2 p-12px'>
-          <Typography.Text type='secondary'>{t('settings.hermes.cron.summary.total')}</Typography.Text>
-          <div className='text-24px font-600'>{state.total}</div>
-        </div>
-        <div className='rounded-8px bg-2 p-12px'>
-          <Typography.Text type='secondary'>{t('settings.hermes.cron.summary.active')}</Typography.Text>
-          <div className='text-24px font-600 text-[#00b42a]'>{state.active}</div>
-        </div>
-        <div className='rounded-8px bg-2 p-12px'>
-          <Typography.Text type='secondary'>{t('settings.hermes.cron.summary.paused')}</Typography.Text>
-          <div className='text-24px font-600 text-[#ff7d00]'>{state.paused}</div>
-        </div>
-        <div className='rounded-8px bg-2 p-12px'>
-          <Typography.Text type='secondary'>{t('settings.hermes.cron.summary.errors')}</Typography.Text>
-          <div className='text-24px font-600 text-[#f53f3f]'>{state.errors}</div>
-        </div>
+        <StatCard label={t('settings.hermes.cron.summary.total')} value={state.total} />
+        <StatCard
+          label={t('settings.hermes.cron.summary.active')}
+          value={state.active}
+          valueClassName='text-success-6'
+        />
+        <StatCard
+          label={t('settings.hermes.cron.summary.paused')}
+          value={state.paused}
+          valueClassName='text-warning-6'
+        />
+        <StatCard
+          label={t('settings.hermes.cron.summary.errors')}
+          value={state.errors}
+          valueClassName='text-danger-6'
+        />
       </div>
 
       {error ? <Alert type='error' content={error} /> : null}
 
-      {state.jobs.length === 0 ? (
-        <Empty description={t('settings.hermes.cron.empty')} />
-      ) : (
-        <Table rowKey='id' columns={columns} data={state.jobs} pagination={false} scroll={{ x: true }} />
-      )}
+      <SectionCard title={t('settings.hermes.cron.tabTitle')}>
+        {state.jobs.length === 0 ? (
+          <Empty description={t('settings.hermes.cron.empty')} />
+        ) : (
+          <Table rowKey='id' columns={columns} data={state.jobs} pagination={false} scroll={{ x: true }} />
+        )}
+      </SectionCard>
     </div>
   );
 };

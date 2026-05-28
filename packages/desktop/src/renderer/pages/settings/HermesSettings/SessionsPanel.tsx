@@ -6,10 +6,11 @@
 
 import { ipcBridge } from '@/common';
 import { isBackendHttpError } from '@/common/adapter/httpBridge';
-import { Alert, Button, Empty, Table, Tag, Spin, Typography } from '@arco-design/web-react';
+import { Alert, Button, Empty, Table, Tag, Typography } from '@arco-design/web-react';
 import { Refresh } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { PanelHeader, PanelLoading, SectionCard, StatCard } from './components';
 
 export type HermesSessionSummary = {
   id: string;
@@ -58,6 +59,8 @@ const SessionsPanel: React.FC = () => {
     void load();
   }, [load]);
 
+  const latestSession = sessions[0];
+
   const columns = useMemo(
     () => [
       {
@@ -98,11 +101,7 @@ const SessionsPanel: React.FC = () => {
   );
 
   if (loading) {
-    return (
-      <div className='h-240px flex items-center justify-center'>
-        <Spin dot />
-      </div>
-    );
+    return <PanelLoading />;
   }
 
   if (unsupported) {
@@ -117,25 +116,35 @@ const SessionsPanel: React.FC = () => {
 
   return (
     <div className='flex flex-col gap-16px'>
-      <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-12px'>
-        <div className='min-w-0'>
-          <Typography.Title heading={5} className='!mt-0 !mb-4px'>
-            {t('settings.hermes.sessions.title')}
-          </Typography.Title>
-          <Typography.Text type='secondary'>{t('settings.hermes.sessions.description')}</Typography.Text>
-        </div>
-        <Button icon={<Refresh />} onClick={() => void load()}>
-          {t('common.reload')}
-        </Button>
-      </div>
+      <PanelHeader
+        title={t('settings.hermes.sessions.title')}
+        description={t('settings.hermes.sessions.description')}
+        action={
+          <Button icon={<Refresh />} onClick={() => void load()}>
+            {t('common.reload')}
+          </Button>
+        }
+      />
 
       {error ? <Alert type='error' content={error} /> : null}
 
-      {sessions.length === 0 ? (
-        <Empty description={t('settings.hermes.sessions.empty')} />
-      ) : (
-        <Table rowKey='id' columns={columns} data={sessions} pagination={false} scroll={{ x: true }} />
-      )}
+      <div className='grid grid-cols-1 md:grid-cols-3 gap-12px'>
+        <StatCard label={t('settings.hermes.cron.summary.total')} value={sessions.length} />
+        <StatCard label={t('settings.hermes.sessions.columns.model')} value={latestSession?.model || '-'} />
+        <StatCard
+          label={t('settings.hermes.sessions.columns.lastUpdated')}
+          value={formatDateTime(latestSession?.last_updated) || '-'}
+          hint={latestSession?.title || latestSession?.id}
+        />
+      </div>
+
+      <SectionCard title={t('settings.hermes.sessions.tabTitle')}>
+        {sessions.length === 0 ? (
+          <Empty description={t('settings.hermes.sessions.empty')} />
+        ) : (
+          <Table rowKey='id' columns={columns} data={sessions} pagination={false} scroll={{ x: true }} />
+        )}
+      </SectionCard>
     </div>
   );
 };

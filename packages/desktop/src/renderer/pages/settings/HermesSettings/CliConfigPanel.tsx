@@ -6,12 +6,11 @@
 
 import { ipcBridge } from '@/common';
 import { isBackendHttpError } from '@/common/adapter/httpBridge';
-import { Alert, Button, Empty, Input, Spin, Tag, Typography } from '@arco-design/web-react';
+import { Alert, Button, Empty, Tag, Typography } from '@arco-design/web-react';
 import { Refresh, Terminal } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-
-const { TextArea } = Input;
+import { InfoTile, OutputCard, PanelHeader, PanelLoading, SectionCard, StatCard } from './components';
 
 type HermesCliCommandSummary = {
   id: string;
@@ -58,6 +57,17 @@ function formatOutput(result?: HermesCliRunResult): string {
   const parts = [result.stdout?.trim(), result.stderr?.trim()].filter(Boolean);
   const text = parts.join('\n\n--- stderr ---\n');
   return text || '(no output)';
+}
+
+function renderExitTag(
+  result?: HermesCliRunResult,
+  timedOutLabel?: string,
+  exitCodeLabel?: (code: string | number) => string
+) {
+  if (!result) return null;
+  if (result.timedOut) return <Tag color='orange'>{timedOutLabel}</Tag>;
+  const code = result.exitCode ?? 'unknown';
+  return <Tag color={result.exitCode === 0 ? 'green' : 'red'}>{exitCodeLabel ? exitCodeLabel(code) : code}</Tag>;
 }
 
 const CliConfigPanel: React.FC = () => {
@@ -120,11 +130,7 @@ const CliConfigPanel: React.FC = () => {
   );
 
   if (loading) {
-    return (
-      <div className='h-240px flex items-center justify-center'>
-        <Spin dot />
-      </div>
-    );
+    return <PanelLoading />;
   }
 
   if (unsupported) {
@@ -139,80 +145,73 @@ const CliConfigPanel: React.FC = () => {
 
   return (
     <div className='flex flex-col gap-16px'>
-      <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-12px'>
-        <div className='min-w-0'>
-          <Typography.Title heading={5} className='!mt-0 !mb-4px'>
-            {t('settings.hermes.cli.title')}
-          </Typography.Title>
-          <Typography.Text type='secondary'>{t('settings.hermes.cli.description')}</Typography.Text>
-        </div>
-        <Button icon={<Refresh />} onClick={() => void load()} disabled={!!runningId}>
-          {t('common.reload')}
-        </Button>
-      </div>
+      <PanelHeader
+        title={t('settings.hermes.cli.title')}
+        description={t('settings.hermes.cli.description')}
+        action={
+          <Button icon={<Refresh />} onClick={() => void load()} disabled={!!runningId}>
+            {t('common.reload')}
+          </Button>
+        }
+      />
 
       {error ? <Alert type='error' content={error} /> : null}
 
       {state ? (
         <>
-          <div className='grid grid-cols-1 lg:grid-cols-4 gap-12px'>
-            <div className='rounded-8px bg-2 p-12px min-w-0'>
-              <Typography.Text type='secondary'>{t('settings.hermes.cli.summary.cli')}</Typography.Text>
-              <Typography.Text className='block font-500' ellipsis>
-                {state.cliPath}
-              </Typography.Text>
-            </div>
-            <div className='rounded-8px bg-2 p-12px min-w-0'>
-              <Typography.Text type='secondary'>{t('settings.hermes.cli.summary.home')}</Typography.Text>
-              <Typography.Text className='block font-500' ellipsis>
-                {state.hermesHome}
-              </Typography.Text>
-            </div>
-            <div className='rounded-8px bg-2 p-12px min-w-0'>
-              <Typography.Text type='secondary'>{t('settings.hermes.cli.summary.config')}</Typography.Text>
-              <Typography.Text className='block font-500' ellipsis>
-                {state.configPath}
-              </Typography.Text>
-            </div>
-            <div className='rounded-8px bg-2 p-12px min-w-0'>
-              <Typography.Text type='secondary'>{t('settings.hermes.cli.summary.env')}</Typography.Text>
-              <Typography.Text className='block font-500' ellipsis>
-                {state.envPath}
-              </Typography.Text>
-            </div>
+          <div className='grid grid-cols-1 md:grid-cols-3 gap-12px'>
+            <StatCard
+              label={t('settings.hermes.cli.statusOutput')}
+              value={state.overview.status?.exitCode === 0 ? t('settings.hermes.cron.status.active') : '-'}
+              hint={formatCommand(state.overview.status)}
+              valueClassName={state.overview.status?.exitCode === 0 ? 'text-success-6' : ''}
+            />
+            <StatCard
+              label={t('settings.hermes.cli.configOutput')}
+              value={state.overview.config?.exitCode === 0 ? t('settings.hermes.cron.status.active') : '-'}
+              hint={formatCommand(state.overview.config)}
+              valueClassName={state.overview.config?.exitCode === 0 ? 'text-success-6' : ''}
+            />
+            <StatCard label={t('settings.hermes.cli.commandsTitle')} value={state.commands.length} />
           </div>
+
+          <SectionCard title={t('settings.hermes.title')} description={formatCommand(state.overview.version)}>
+            <div className='grid grid-cols-1 lg:grid-cols-4 gap-12px'>
+              <InfoTile label={t('settings.hermes.cli.summary.cli')} value={state.cliPath} />
+              <InfoTile label={t('settings.hermes.cli.summary.home')} value={state.hermesHome} />
+              <InfoTile label={t('settings.hermes.cli.summary.config')} value={state.configPath} />
+              <InfoTile label={t('settings.hermes.cli.summary.env')} value={state.envPath} />
+            </div>
+          </SectionCard>
 
           <div className='grid grid-cols-1 xl:grid-cols-2 gap-16px'>
-            <section className='rounded-8px border border-b-base p-12px min-w-0'>
-              <div className='flex items-center justify-between gap-8px mb-8px'>
-                <Typography.Text className='font-500'>{t('settings.hermes.cli.statusOutput')}</Typography.Text>
-                <Tag color={state.overview.status?.exitCode === 0 ? 'green' : 'orange'}>
-                  {formatCommand(state.overview.status)}
-                </Tag>
-              </div>
-              <TextArea value={formatOutput(state.overview.status)} readOnly autoSize={{ minRows: 10, maxRows: 18 }} />
-            </section>
-            <section className='rounded-8px border border-b-base p-12px min-w-0'>
-              <div className='flex items-center justify-between gap-8px mb-8px'>
-                <Typography.Text className='font-500'>{t('settings.hermes.cli.configOutput')}</Typography.Text>
-                <Tag color={state.overview.config?.exitCode === 0 ? 'green' : 'orange'}>
-                  {formatCommand(state.overview.config)}
-                </Tag>
-              </div>
-              <TextArea value={formatOutput(state.overview.config)} readOnly autoSize={{ minRows: 10, maxRows: 18 }} />
-            </section>
+            <OutputCard
+              title={t('settings.hermes.cli.statusOutput')}
+              command={formatCommand(state.overview.status)}
+              status={renderExitTag(state.overview.status, t('settings.hermes.cli.timedOut'), (code) =>
+                t('settings.hermes.cli.exitCode', { code })
+              )}
+              value={formatOutput(state.overview.status)}
+              minRows={8}
+              maxRows={16}
+            />
+            <OutputCard
+              title={t('settings.hermes.cli.configOutput')}
+              command={formatCommand(state.overview.config)}
+              status={renderExitTag(state.overview.config, t('settings.hermes.cli.timedOut'), (code) =>
+                t('settings.hermes.cli.exitCode', { code })
+              )}
+              value={formatOutput(state.overview.config)}
+              minRows={8}
+              maxRows={16}
+            />
           </div>
 
-          <section className='rounded-8px border border-b-base p-12px min-w-0'>
-            <div className='flex items-start justify-between gap-8px mb-12px'>
-              <div>
-                <Typography.Text className='font-500'>{t('settings.hermes.cli.commandsTitle')}</Typography.Text>
-                <div>
-                  <Typography.Text type='secondary'>{t('settings.hermes.cli.commandsDescription')}</Typography.Text>
-                </div>
-              </div>
-              <Tag>{state.commands.length}</Tag>
-            </div>
+          <SectionCard
+            title={t('settings.hermes.cli.commandsTitle')}
+            description={t('settings.hermes.cli.commandsDescription')}
+            extra={<Tag>{state.commands.length}</Tag>}
+          >
             {groupedCommands.length === 0 ? (
               <Empty description={t('settings.hermes.cli.empty')} />
             ) : (
@@ -222,49 +221,56 @@ const CliConfigPanel: React.FC = () => {
                     <Typography.Text type='secondary' className='font-500'>
                       {category}
                     </Typography.Text>
-                    <div className='flex flex-wrap gap-8px'>
+                    <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10px'>
                       {commands.map((command) => (
-                        <Button
-                          key={command.id}
-                          icon={<Terminal />}
-                          loading={runningId === command.id}
-                          disabled={!!runningId && runningId !== command.id}
-                          title={`${command.description}\nhermes ${command.args.join(' ')}`}
-                          onClick={() => void runCommand(command)}
-                        >
-                          {command.label}
-                        </Button>
+                        <div key={command.id} className='rounded-10px bg-2 p-12px flex flex-col gap-10px min-w-0'>
+                          <div className='min-w-0 flex-1'>
+                            <Typography.Text className='font-500' ellipsis>
+                              {command.label}
+                            </Typography.Text>
+                            <div className='mt-2px'>
+                              <Typography.Text type='secondary' className='text-12px'>
+                                {command.description}
+                              </Typography.Text>
+                            </div>
+                            <Typography.Text type='secondary' className='block mt-6px text-12px font-mono' ellipsis>
+                              hermes {command.args.join(' ')}
+                            </Typography.Text>
+                          </div>
+                          <Button
+                            icon={<Terminal />}
+                            loading={runningId === command.id}
+                            disabled={!!runningId && runningId !== command.id}
+                            onClick={() => void runCommand(command)}
+                          >
+                            {command.label}
+                          </Button>
+                        </div>
                       ))}
                     </div>
                   </div>
                 ))}
               </div>
             )}
-          </section>
+          </SectionCard>
 
           {lastRun ? (
-            <section className='rounded-8px border border-b-base p-12px min-w-0'>
-              <div className='flex items-center justify-between gap-8px mb-8px'>
-                <div className='min-w-0'>
-                  <Typography.Text className='font-500'>{lastRun.command.label}</Typography.Text>
-                  <div>
-                    <Typography.Text type='secondary' className='text-12px' ellipsis>
-                      {formatCommand(lastRun.result)}
-                    </Typography.Text>
-                  </div>
-                </div>
-                <Tag color={lastRun.result.exitCode === 0 ? 'green' : 'red'}>
-                  {lastRun.result.timedOut
-                    ? t('settings.hermes.cli.timedOut')
-                    : t('settings.hermes.cli.exitCode', { code: lastRun.result.exitCode ?? 'unknown' })}
-                </Tag>
-              </div>
-              <TextArea value={formatOutput(lastRun.result)} readOnly autoSize={{ minRows: 12, maxRows: 28 }} />
-            </section>
+            <OutputCard
+              title={lastRun.command.label}
+              command={formatCommand(lastRun.result)}
+              status={renderExitTag(lastRun.result, t('settings.hermes.cli.timedOut'), (code) =>
+                t('settings.hermes.cli.exitCode', { code })
+              )}
+              value={formatOutput(lastRun.result)}
+              minRows={12}
+              maxRows={28}
+            />
           ) : null}
         </>
       ) : (
-        <Empty description={t('settings.hermes.cli.empty')} />
+        <SectionCard>
+          <Empty description={t('settings.hermes.cli.empty')} />
+        </SectionCard>
       )}
     </div>
   );
