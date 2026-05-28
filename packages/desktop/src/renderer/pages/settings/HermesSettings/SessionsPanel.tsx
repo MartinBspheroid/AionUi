@@ -6,21 +6,12 @@
 
 import { ipcBridge } from '@/common';
 import { isBackendHttpError } from '@/common/adapter/httpBridge';
+import type { HermesSessionSummary } from '@/common/types/hermes/hermesExt';
 import { Alert, Button, Empty, Table, Tag, Typography } from '@arco-design/web-react';
 import { Refresh } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PanelHeader, PanelLoading, SectionCard, StatCard } from './components';
-
-export type HermesSessionSummary = {
-  id: string;
-  title?: string;
-  model?: string;
-  platform?: string;
-  session_start?: string;
-  last_updated?: string;
-  path?: string;
-};
 
 function formatDateTime(value?: string): string {
   if (!value) return '';
@@ -61,7 +52,7 @@ const SessionsPanel: React.FC = () => {
 
   const sortedSessions = useMemo(
     () =>
-      [...sessions].sort((a, b) => {
+      [...sessions].toSorted((a, b) => {
         const aTime = Date.parse(a.last_updated || a.session_start || '');
         const bTime = Date.parse(b.last_updated || b.session_start || '');
         return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);

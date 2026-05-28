@@ -198,6 +198,9 @@ lint-results.txt
 worktree/
 worktrees/
 
+# Hermes parity research (local reference clones, not source)
+.research-*/
+
 # Superpowers brainstorm tool (runtime files, session data)
 .superpowers/
 docs/superpowers/

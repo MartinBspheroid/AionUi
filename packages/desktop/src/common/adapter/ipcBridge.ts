@@ -45,6 +45,16 @@ import type {
   TeamAgent,
 } from '../types/team/teamTypes';
 import type {
+  HermesCapabilities,
+  HermesCheckpoint,
+  HermesCliConfigResponse,
+  HermesCliRunResponse,
+  HermesCronJobsResponse,
+  HermesMemoryPayload,
+  HermesMemoryUpdate,
+  HermesSessionsResponse,
+} from '../types/hermes/hermesExt';
+import type {
   AutoUpdateStatus,
   UpdateCheckRequest,
   UpdateCheckResult,
@@ -763,86 +773,20 @@ export const acpConversation = {
     (p) => ({ model_id: p.model_id })
   ),
   hermesExt: {
-    getMemory: httpGet<{ memory: string; user: string }, void>('/api/agents/hermes/memory', { silentStatuses: [404] }),
-    setMemory: httpPut<void, { memory: string; user: string }>('/api/agents/hermes/memory'),
-    listSessions: httpGet<
-      {
-        sessions: Array<{
-          id: string;
-          title?: string;
-          model?: string;
-          platform?: string;
-          session_start?: string;
-          last_updated?: string;
-          path?: string;
-        }>;
-      },
-      void
-    >('/api/agents/hermes/sessions?limit=20', { silentStatuses: [404] }),
-    listCronJobs: httpGet<
-      {
-        jobs: Array<{
-          id: string;
-          name: string;
-          enabled: boolean;
-          state?: string;
-          schedule_display?: string;
-          schedule_kind?: string;
-          schedule_expr?: string;
-          repeat_completed?: number;
-          repeat_times?: number | null;
-          next_run_at?: string;
-          last_run_at?: string;
-          last_status?: string;
-          last_error?: string;
-          last_delivery_error?: string;
-          deliver?: string;
-          script?: string;
-          no_agent?: boolean;
-          workdir?: string;
-          model?: string;
-          provider?: string;
-          skills?: string[];
-        }>;
-        total: number;
-        active: number;
-        paused: number;
-        errors: number;
-      },
-      void
-    >('/api/agents/hermes/cron/jobs?limit=100', { silentStatuses: [404] }),
-    getCliConfig: httpGet<
-      {
-        hermesHome: string;
-        cliPath: string;
-        configPath: string;
-        envPath: string;
-        commands: Array<{ id: string; label: string; description: string; args: string[]; category: string }>;
-        overview: {
-          version?: { command: string; args: string[]; exitCode: number | null; stdout: string; stderr: string; timedOut?: boolean };
-          status?: { command: string; args: string[]; exitCode: number | null; stdout: string; stderr: string; timedOut?: boolean };
-          config?: { command: string; args: string[]; exitCode: number | null; stdout: string; stderr: string; timedOut?: boolean };
-        };
-      },
-      void
-    >('/api/agents/hermes/cli-config', { silentStatuses: [404] }),
-    runCliCommand: httpPost<
-      {
-        command: { id: string; label: string; description: string; args: string[]; category: string };
-        result: { command: string; args: string[]; exitCode: number | null; stdout: string; stderr: string; timedOut?: boolean };
-      },
-      { command_id: string }
-    >('/api/agents/hermes/cli-config'),
-    getCapabilities: httpGet<
-      {
-        compress?: boolean;
-        retry?: boolean;
-        undo?: boolean;
-        forkSession?: boolean;
-        rollback?: boolean;
-      },
-      { conversation_id: string }
-    >((p) => `/api/conversations/${p.conversation_id}/hermes/capabilities`, { silentStatuses: [404] }),
+    getMemory: httpGet<HermesMemoryPayload, void>('/api/agents/hermes/memory', { silentStatuses: [404] }),
+    setMemory: httpPut<void, HermesMemoryUpdate>('/api/agents/hermes/memory'),
+    listSessions: httpGet<HermesSessionsResponse, void>('/api/agents/hermes/sessions?limit=20', {
+      silentStatuses: [404],
+    }),
+    listCronJobs: httpGet<HermesCronJobsResponse, void>('/api/agents/hermes/cron/jobs?limit=100', {
+      silentStatuses: [404],
+    }),
+    getCliConfig: httpGet<HermesCliConfigResponse, void>('/api/agents/hermes/cli-config', { silentStatuses: [404] }),
+    runCliCommand: httpPost<HermesCliRunResponse, { command_id: string }>('/api/agents/hermes/cli-config'),
+    getCapabilities: httpGet<HermesCapabilities, { conversation_id: string }>(
+      (p) => `/api/conversations/${p.conversation_id}/hermes/capabilities`,
+      { silentStatuses: [404] }
+    ),
     compress: httpPost<void, { conversation_id: string; focus?: string }>(
       (p) => `/api/conversations/${p.conversation_id}/hermes/compress`,
       (p) => ({ focus: p.focus })
@@ -852,7 +796,7 @@ export const acpConversation = {
     forkSession: httpPost<{ session_id: string }, { conversation_id: string }>(
       (p) => `/api/conversations/${p.conversation_id}/hermes/fork`
     ),
-    listCheckpoints: httpGet<Array<{ id: string; timestamp?: string; label?: string }>, { conversation_id: string }>(
+    listCheckpoints: httpGet<HermesCheckpoint[], { conversation_id: string }>(
       (p) => `/api/conversations/${p.conversation_id}/hermes/checkpoints`,
       { silentStatuses: [404] }
     ),

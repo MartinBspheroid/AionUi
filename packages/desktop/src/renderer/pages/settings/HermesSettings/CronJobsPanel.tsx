@@ -6,43 +6,14 @@
 
 import { ipcBridge } from '@/common';
 import { isBackendHttpError } from '@/common/adapter/httpBridge';
+import type { HermesCronJobSummary, HermesCronJobsResponse } from '@/common/types/hermes/hermesExt';
 import { Alert, Button, Empty, Table, Tag, Typography } from '@arco-design/web-react';
 import { Refresh } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PanelHeader, PanelLoading, SectionCard, StatCard } from './components';
 
-type HermesCronJobSummary = {
-  id: string;
-  name: string;
-  enabled: boolean;
-  state?: string;
-  schedule_display?: string;
-  schedule_kind?: string;
-  schedule_expr?: string;
-  repeat_completed?: number;
-  repeat_times?: number | null;
-  next_run_at?: string;
-  last_run_at?: string;
-  last_status?: string;
-  last_error?: string;
-  last_delivery_error?: string;
-  deliver?: string;
-  script?: string;
-  no_agent?: boolean;
-  workdir?: string;
-  model?: string;
-  provider?: string;
-  skills?: string[];
-};
-
-type HermesCronJobsState = {
-  jobs: HermesCronJobSummary[];
-  total: number;
-  active: number;
-  paused: number;
-  errors: number;
-};
+type HermesCronJobsState = HermesCronJobsResponse;
 
 function formatDateTime(value?: string): string {
   if (!value) return '';

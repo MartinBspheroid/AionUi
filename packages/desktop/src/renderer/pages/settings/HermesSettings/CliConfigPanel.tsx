@@ -6,46 +6,20 @@
 
 import { ipcBridge } from '@/common';
 import { isBackendHttpError } from '@/common/adapter/httpBridge';
+import type {
+  HermesCliCommandSummary,
+  HermesCliConfigResponse,
+  HermesCliRunResponse,
+  HermesCliRunResult,
+} from '@/common/types/hermes/hermesExt';
 import { Alert, Button, Empty, Tag, Typography } from '@arco-design/web-react';
 import { Refresh, Terminal } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InfoTile, OutputCard, PanelHeader, PanelLoading, SectionCard, StatCard } from './components';
 
-type HermesCliCommandSummary = {
-  id: string;
-  label: string;
-  description: string;
-  args: string[];
-  category: string;
-};
-
-type HermesCliRunResult = {
-  command: string;
-  args: string[];
-  exitCode: number | null;
-  stdout: string;
-  stderr: string;
-  timedOut?: boolean;
-};
-
-type HermesCliConfigState = {
-  hermesHome: string;
-  cliPath: string;
-  configPath: string;
-  envPath: string;
-  commands: HermesCliCommandSummary[];
-  overview: {
-    version?: HermesCliRunResult;
-    status?: HermesCliRunResult;
-    config?: HermesCliRunResult;
-  };
-};
-
-type CommandRunState = {
-  command: HermesCliCommandSummary;
-  result: HermesCliRunResult;
-};
+type HermesCliConfigState = HermesCliConfigResponse;
+type CommandRunState = HermesCliRunResponse;
 
 function formatCommand(result?: HermesCliRunResult): string {
   if (!result) return '';
