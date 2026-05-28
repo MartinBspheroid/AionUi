@@ -299,6 +299,15 @@ export type AvailableCommand = {
   name: string;
   description: string;
   hint?: string;
+  input_hint?: string;
+  input?:
+    | string
+    | {
+        hint?: string;
+        root?: {
+          hint?: string;
+        };
+      };
 };
 
 export type IMessageAvailableCommands = IMessage<

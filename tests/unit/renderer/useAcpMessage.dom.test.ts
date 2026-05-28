@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ipcBridge } from '@/common';
 import { useAcpMessage } from '@/renderer/pages/conversation/platforms/acp/useAcpMessage';
 import { getConversationOrNull } from '@/renderer/pages/conversation/utils/conversationCache';
 import type { IResponseMessage } from '@/common/adapter/ipcBridge';
@@ -167,5 +168,65 @@ describe('useAcpMessage', () => {
         msg_id: 'msg-1',
       })
     );
+  });
+
+  it('maps Hermes ACP command input hints from fetched slash commands', async () => {
+    vi.mocked(getConversationOrNull).mockResolvedValue(null);
+    vi.mocked(ipcBridge.conversation.getSlashCommands.invoke).mockResolvedValue([
+      {
+        command: 'cron',
+        description: 'Manage scheduled jobs: list, status, create',
+        input_hint: 'list | status | create <cron> :: <prompt>',
+      },
+    ] as Awaited<ReturnType<typeof ipcBridge.conversation.getSlashCommands.invoke>>);
+
+    const { result } = renderHook(() => useAcpMessage('conv-1'));
+
+    await waitFor(() => {
+      expect(result.current.slashCommands).toEqual([
+        expect.objectContaining({
+          name: 'cron',
+          description: 'Manage scheduled jobs: list, status, create',
+          hint: 'list | status | create <cron> :: <prompt>',
+          kind: 'template',
+          source: 'acp',
+          selectionBehavior: 'insert',
+        }),
+      ]);
+    });
+  });
+
+  it('maps Hermes ACP command input hints from stream updates', async () => {
+    vi.mocked(getConversationOrNull).mockResolvedValue(null);
+
+    const { result } = renderHook(() => useAcpMessage('conv-1'));
+
+    act(() => {
+      responseStreamHandlerRef.current?.({
+        type: 'available_commands',
+        data: {
+          commands: [
+            {
+              name: 'memory',
+              description: 'Read or update persistent memory',
+              input_hint: 'read [memory|user] | add [memory|user] <text>',
+            },
+          ],
+        },
+        msg_id: 'msg-1',
+        conversation_id: 'conv-1',
+      } as IResponseMessage);
+    });
+
+    expect(result.current.slashCommands).toEqual([
+      expect.objectContaining({
+        name: 'memory',
+        description: 'Read or update persistent memory',
+        hint: 'read [memory|user] | add [memory|user] <text>',
+        kind: 'template',
+        source: 'acp',
+        selectionBehavior: 'insert',
+      }),
+    ]);
   });
 });

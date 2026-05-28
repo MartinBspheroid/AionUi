@@ -198,9 +198,16 @@ export const conversation = {
       inject_skills: p.inject_skills,
     })
   ),
-  getSlashCommands: httpGet<Array<{ command: string; description: string }>, { conversation_id: string }>(
-    (p) => `/api/conversations/${p.conversation_id}/slash-commands`
-  ),
+  getSlashCommands: httpGet<
+    Array<{
+      command: string;
+      description: string;
+      hint?: string;
+      input_hint?: string;
+      input?: string | { hint?: string; root?: { hint?: string } };
+    }>,
+    { conversation_id: string }
+  >((p) => `/api/conversations/${p.conversation_id}/slash-commands`),
   askSideQuestion: httpPost<ConversationSideQuestionResult, { conversation_id: string; question: string }>(
     (p) => `/api/conversations/${p.conversation_id}/side-question`,
     (p) => ({ question: p.question })

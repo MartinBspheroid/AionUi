@@ -5,6 +5,7 @@
  */
 
 import { ipcBridge } from '@/common';
+import { mapAcpCommandsToSlashCommands } from '@/common/chat/slash/acpCommands';
 import { transformMessage } from '@/common/chat/chatLib';
 import type { AvailableCommand } from '@/common/chat/chatLib';
 import type { SlashCommandItem } from '@/common/chat/slash/types';
@@ -369,15 +370,7 @@ export const useAcpMessage = (conversation_id: string, options?: { skipWarmup?: 
         case 'available_commands': {
           const cmdData = message.data as { commands?: AvailableCommand[] };
           if (cmdData?.commands && Array.isArray(cmdData.commands)) {
-            setSlashCommands(
-              cmdData.commands.map((c) => ({
-                name: c.name,
-                description: c.description,
-                kind: 'template' as const,
-                source: 'acp' as const,
-                selectionBehavior: 'insert' as const,
-              }))
-            );
+            setSlashCommands(mapAcpCommandsToSlashCommands(cmdData.commands));
           }
           break;
         }
@@ -552,15 +545,7 @@ export const useAcpMessage = (conversation_id: string, options?: { skipWarmup?: 
       .then((result) => {
         if (cancelled) return;
         if (!result || !Array.isArray(result) || result.length === 0) return;
-        setSlashCommands(
-          result.map((c) => ({
-            name: c.command,
-            description: c.description,
-            kind: 'template' as const,
-            source: 'acp' as const,
-            selectionBehavior: 'insert' as const,
-          }))
-        );
+        setSlashCommands(mapAcpCommandsToSlashCommands(result));
       })
       .catch(() => {});
     return () => {
@@ -586,15 +571,7 @@ export const useAcpMessage = (conversation_id: string, options?: { skipWarmup?: 
       .invoke({ conversation_id })
       .then((result) => {
         if (!result || !Array.isArray(result) || result.length === 0) return;
-        setSlashCommands(
-          result.map((c) => ({
-            name: c.command,
-            description: c.description,
-            kind: 'template' as const,
-            source: 'acp' as const,
-            selectionBehavior: 'insert' as const,
-          }))
-        );
+        setSlashCommands(mapAcpCommandsToSlashCommands(result));
       })
       .catch(() => {});
   }, [conversation_id]);
