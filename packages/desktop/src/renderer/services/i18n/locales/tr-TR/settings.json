@@ -922,6 +922,9 @@
       "loadError": "Failed to load Hermes memory",
       "saveError": "Failed to save Hermes memory",
       "saveSuccess": "Hermes memory saved",
+      "saveUser": "Save USER.md",
+      "saveAgent": "Save MEMORY.md",
+      "lastModified": "Last modified",
       "unsupportedTitle": "Hermes memory API unavailable",
       "unsupportedDescription": "Aioncore must provide GET and PUT /api/agents/hermes/memory before this editor can load MEMORY.md and USER.md."
     },

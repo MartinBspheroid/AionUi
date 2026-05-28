@@ -27,14 +27,35 @@ describe('Hermes ACP extension bridge', () => {
       ok: true,
       status: 200,
       headers: new Headers({ 'Content-Type': 'application/json' }),
-      json: async () => ({ data: { memory: 'memory', user: 'user' } }),
+      json: async () => ({
+        data: {
+          memory: 'memory',
+          user: 'user',
+          memory_mtime: '2026-05-28T12:00:00.000Z',
+          user_mtime: '2026-05-28T11:00:00.000Z',
+        },
+      }),
     });
 
-    await expect(acpConversation.hermesExt.getMemory.invoke()).resolves.toEqual({ memory: 'memory', user: 'user' });
+    await expect(acpConversation.hermesExt.getMemory.invoke()).resolves.toEqual({
+      memory: 'memory',
+      user: 'user',
+      memory_mtime: '2026-05-28T12:00:00.000Z',
+      user_mtime: '2026-05-28T11:00:00.000Z',
+    });
 
     expect(fetchMock).toHaveBeenCalledWith(
       'http://127.0.0.1:13400/api/agents/hermes/memory',
       expect.objectContaining({ method: 'GET' })
+    );
+  });
+
+  it('sends partial memory updates for a single section', async () => {
+    await acpConversation.hermesExt.setMemory.invoke({ user: 'just the user side' });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:13400/api/agents/hermes/memory',
+      expect.objectContaining({ method: 'PUT', body: JSON.stringify({ user: 'just the user side' }) })
     );
   });
 

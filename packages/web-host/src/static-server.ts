@@ -118,18 +118,20 @@ async function isAuthenticated(req: IncomingMessage, backendPort: number): Promi
   });
 }
 
-async function readFirstExistingTextFileOrEmpty(filePaths: string[]): Promise<string> {
+async function readFirstExistingTextFileOrEmpty(filePaths: string[]): Promise<{ content: string; mtime?: string }> {
   const results = await Promise.all(
     filePaths.map(async (filePath) => {
       try {
-        return { exists: true, content: await fs.readFile(filePath, 'utf8') };
+        const [content, stat] = await Promise.all([fs.readFile(filePath, 'utf8'), fs.stat(filePath)]);
+        return { exists: true, content, mtime: stat.mtime.toISOString() };
       } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { exists: false, content: '' };
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { exists: false, content: '', mtime: undefined };
         throw error;
       }
     })
   );
-  return results.find((result) => result.exists)?.content ?? '';
+  const found = results.find((result) => result.exists);
+  return found ? { content: found.content, mtime: found.mtime } : { content: '' };
 }
 
 function getHermesHome(): string {
@@ -150,7 +152,6 @@ function getHermesMemoryPaths(hermesHome = getHermesHome()): {
     legacyUserPath: path.join(hermesHome, 'USER.md'),
   };
 }
-
 
 type HermesCliCommandSummary = {
   id: string;
@@ -183,41 +184,251 @@ type HermesCliConfigResponse = {
 };
 
 const HERMES_CLI_COMMANDS: HermesCliCommandSummary[] = [
-  { id: 'help', label: 'CLI help', description: 'Top-level Hermes CLI options and subcommands.', args: ['--help'], category: 'Help' },
-  { id: 'status', label: 'Status', description: 'Component status, active provider, auth providers, gateway, jobs, and sessions.', args: ['status'], category: 'Health' },
-  { id: 'doctor', label: 'Doctor', description: 'Detailed diagnostics for dependencies and config.', args: ['doctor'], category: 'Health' },
-  { id: 'config-show', label: 'Config: show', description: 'Redacted rendered Hermes configuration.', args: ['config', 'show'], category: 'Config' },
-  { id: 'config-check', label: 'Config: check', description: 'Check for missing or outdated configuration.', args: ['config', 'check'], category: 'Config' },
-  { id: 'config-help', label: 'Config: help', description: 'Hermes config subcommand options.', args: ['config', '--help'], category: 'Config' },
-  { id: 'config-path', label: 'Config: path', description: 'Print config.yaml path.', args: ['config', 'path'], category: 'Config' },
-  { id: 'config-env-path', label: 'Config: env path', description: 'Print .env path.', args: ['config', 'env-path'], category: 'Config' },
-  { id: 'model-help', label: 'Model: help', description: 'Model/provider picker help and options.', args: ['model', '--help'], category: 'Model' },
-  { id: 'tools-list', label: 'Tools: list', description: 'List enabled and available Hermes toolsets.', args: ['tools', 'list'], category: 'Tools & Skills' },
-  { id: 'tools-help', label: 'Tools: help', description: 'Tool management CLI options.', args: ['tools', '--help'], category: 'Tools & Skills' },
-  { id: 'skills-list', label: 'Skills: list', description: 'List installed Hermes skills.', args: ['skills', 'list'], category: 'Tools & Skills' },
-  { id: 'skills-help', label: 'Skills: help', description: 'Skill management CLI options.', args: ['skills', '--help'], category: 'Tools & Skills' },
-  { id: 'mcp-list', label: 'MCP: list', description: 'List configured MCP servers.', args: ['mcp', 'list'], category: 'MCP' },
-  { id: 'mcp-help', label: 'MCP: help', description: 'MCP server CLI options.', args: ['mcp', '--help'], category: 'MCP' },
-  { id: 'profile-list', label: 'Profiles: list', description: 'List Hermes profiles.', args: ['profile', 'list'], category: 'Profiles' },
-  { id: 'profile-help', label: 'Profiles: help', description: 'Profile CLI options.', args: ['profile', '--help'], category: 'Profiles' },
-  { id: 'sessions-list', label: 'Sessions: list', description: 'List recent Hermes sessions.', args: ['sessions', 'list'], category: 'Sessions' },
-  { id: 'sessions-stats', label: 'Sessions: stats', description: 'Session store statistics.', args: ['sessions', 'stats'], category: 'Sessions' },
-  { id: 'sessions-help', label: 'Sessions: help', description: 'Session CLI options.', args: ['sessions', '--help'], category: 'Sessions' },
-  { id: 'cron-list', label: 'Cron: list', description: 'List scheduled Hermes jobs.', args: ['cron', 'list'], category: 'Tasks' },
-  { id: 'cron-status', label: 'Cron: status', description: 'Scheduler status.', args: ['cron', 'status'], category: 'Tasks' },
-  { id: 'cron-help', label: 'Cron: help', description: 'Cron CLI options.', args: ['cron', '--help'], category: 'Tasks' },
-  { id: 'auth-list', label: 'Auth: list', description: 'List credential pool/auth provider status.', args: ['auth', 'list'], category: 'Auth' },
-  { id: 'auth-help', label: 'Auth: help', description: 'Credential pool CLI options.', args: ['auth', '--help'], category: 'Auth' },
-  { id: 'memory-status', label: 'Memory: status', description: 'Memory provider status.', args: ['memory', 'status'], category: 'Memory' },
-  { id: 'memory-help', label: 'Memory: help', description: 'Memory CLI options.', args: ['memory', '--help'], category: 'Memory' },
-  { id: 'honcho-status', label: 'Honcho: status', description: 'Honcho memory integration status.', args: ['honcho', 'status'], category: 'Memory' },
-  { id: 'plugins-list', label: 'Plugins: list', description: 'List installed/available Hermes plugins.', args: ['plugins', 'list'], category: 'Extensions' },
-  { id: 'plugins-help', label: 'Plugins: help', description: 'Plugin CLI options.', args: ['plugins', '--help'], category: 'Extensions' },
-  { id: 'gateway-status', label: 'Gateway: status', description: 'Gateway service status.', args: ['gateway', 'status'], category: 'Gateway' },
-  { id: 'gateway-help', label: 'Gateway: help', description: 'Gateway CLI options.', args: ['gateway', '--help'], category: 'Gateway' },
-  { id: 'webhook-list', label: 'Webhooks: list', description: 'List webhook subscriptions.', args: ['webhook', 'list'], category: 'Gateway' },
-  { id: 'webhook-help', label: 'Webhooks: help', description: 'Webhook CLI options.', args: ['webhook', '--help'], category: 'Gateway' },
-  { id: 'insights', label: 'Insights', description: 'Usage analytics summary.', args: ['insights'], category: 'Analytics' },
+  {
+    id: 'help',
+    label: 'CLI help',
+    description: 'Top-level Hermes CLI options and subcommands.',
+    args: ['--help'],
+    category: 'Help',
+  },
+  {
+    id: 'status',
+    label: 'Status',
+    description: 'Component status, active provider, auth providers, gateway, jobs, and sessions.',
+    args: ['status'],
+    category: 'Health',
+  },
+  {
+    id: 'doctor',
+    label: 'Doctor',
+    description: 'Detailed diagnostics for dependencies and config.',
+    args: ['doctor'],
+    category: 'Health',
+  },
+  {
+    id: 'config-show',
+    label: 'Config: show',
+    description: 'Redacted rendered Hermes configuration.',
+    args: ['config', 'show'],
+    category: 'Config',
+  },
+  {
+    id: 'config-check',
+    label: 'Config: check',
+    description: 'Check for missing or outdated configuration.',
+    args: ['config', 'check'],
+    category: 'Config',
+  },
+  {
+    id: 'config-help',
+    label: 'Config: help',
+    description: 'Hermes config subcommand options.',
+    args: ['config', '--help'],
+    category: 'Config',
+  },
+  {
+    id: 'config-path',
+    label: 'Config: path',
+    description: 'Print config.yaml path.',
+    args: ['config', 'path'],
+    category: 'Config',
+  },
+  {
+    id: 'config-env-path',
+    label: 'Config: env path',
+    description: 'Print .env path.',
+    args: ['config', 'env-path'],
+    category: 'Config',
+  },
+  {
+    id: 'model-help',
+    label: 'Model: help',
+    description: 'Model/provider picker help and options.',
+    args: ['model', '--help'],
+    category: 'Model',
+  },
+  {
+    id: 'tools-list',
+    label: 'Tools: list',
+    description: 'List enabled and available Hermes toolsets.',
+    args: ['tools', 'list'],
+    category: 'Tools & Skills',
+  },
+  {
+    id: 'tools-help',
+    label: 'Tools: help',
+    description: 'Tool management CLI options.',
+    args: ['tools', '--help'],
+    category: 'Tools & Skills',
+  },
+  {
+    id: 'skills-list',
+    label: 'Skills: list',
+    description: 'List installed Hermes skills.',
+    args: ['skills', 'list'],
+    category: 'Tools & Skills',
+  },
+  {
+    id: 'skills-help',
+    label: 'Skills: help',
+    description: 'Skill management CLI options.',
+    args: ['skills', '--help'],
+    category: 'Tools & Skills',
+  },
+  {
+    id: 'mcp-list',
+    label: 'MCP: list',
+    description: 'List configured MCP servers.',
+    args: ['mcp', 'list'],
+    category: 'MCP',
+  },
+  {
+    id: 'mcp-help',
+    label: 'MCP: help',
+    description: 'MCP server CLI options.',
+    args: ['mcp', '--help'],
+    category: 'MCP',
+  },
+  {
+    id: 'profile-list',
+    label: 'Profiles: list',
+    description: 'List Hermes profiles.',
+    args: ['profile', 'list'],
+    category: 'Profiles',
+  },
+  {
+    id: 'profile-help',
+    label: 'Profiles: help',
+    description: 'Profile CLI options.',
+    args: ['profile', '--help'],
+    category: 'Profiles',
+  },
+  {
+    id: 'sessions-list',
+    label: 'Sessions: list',
+    description: 'List recent Hermes sessions.',
+    args: ['sessions', 'list'],
+    category: 'Sessions',
+  },
+  {
+    id: 'sessions-stats',
+    label: 'Sessions: stats',
+    description: 'Session store statistics.',
+    args: ['sessions', 'stats'],
+    category: 'Sessions',
+  },
+  {
+    id: 'sessions-help',
+    label: 'Sessions: help',
+    description: 'Session CLI options.',
+    args: ['sessions', '--help'],
+    category: 'Sessions',
+  },
+  {
+    id: 'cron-list',
+    label: 'Cron: list',
+    description: 'List scheduled Hermes jobs.',
+    args: ['cron', 'list'],
+    category: 'Tasks',
+  },
+  {
+    id: 'cron-status',
+    label: 'Cron: status',
+    description: 'Scheduler status.',
+    args: ['cron', 'status'],
+    category: 'Tasks',
+  },
+  {
+    id: 'cron-help',
+    label: 'Cron: help',
+    description: 'Cron CLI options.',
+    args: ['cron', '--help'],
+    category: 'Tasks',
+  },
+  {
+    id: 'auth-list',
+    label: 'Auth: list',
+    description: 'List credential pool/auth provider status.',
+    args: ['auth', 'list'],
+    category: 'Auth',
+  },
+  {
+    id: 'auth-help',
+    label: 'Auth: help',
+    description: 'Credential pool CLI options.',
+    args: ['auth', '--help'],
+    category: 'Auth',
+  },
+  {
+    id: 'memory-status',
+    label: 'Memory: status',
+    description: 'Memory provider status.',
+    args: ['memory', 'status'],
+    category: 'Memory',
+  },
+  {
+    id: 'memory-help',
+    label: 'Memory: help',
+    description: 'Memory CLI options.',
+    args: ['memory', '--help'],
+    category: 'Memory',
+  },
+  {
+    id: 'honcho-status',
+    label: 'Honcho: status',
+    description: 'Honcho memory integration status.',
+    args: ['honcho', 'status'],
+    category: 'Memory',
+  },
+  {
+    id: 'plugins-list',
+    label: 'Plugins: list',
+    description: 'List installed/available Hermes plugins.',
+    args: ['plugins', 'list'],
+    category: 'Extensions',
+  },
+  {
+    id: 'plugins-help',
+    label: 'Plugins: help',
+    description: 'Plugin CLI options.',
+    args: ['plugins', '--help'],
+    category: 'Extensions',
+  },
+  {
+    id: 'gateway-status',
+    label: 'Gateway: status',
+    description: 'Gateway service status.',
+    args: ['gateway', 'status'],
+    category: 'Gateway',
+  },
+  {
+    id: 'gateway-help',
+    label: 'Gateway: help',
+    description: 'Gateway CLI options.',
+    args: ['gateway', '--help'],
+    category: 'Gateway',
+  },
+  {
+    id: 'webhook-list',
+    label: 'Webhooks: list',
+    description: 'List webhook subscriptions.',
+    args: ['webhook', 'list'],
+    category: 'Gateway',
+  },
+  {
+    id: 'webhook-help',
+    label: 'Webhooks: help',
+    description: 'Webhook CLI options.',
+    args: ['webhook', '--help'],
+    category: 'Gateway',
+  },
+  {
+    id: 'insights',
+    label: 'Insights',
+    description: 'Usage analytics summary.',
+    args: ['insights'],
+    category: 'Analytics',
+  },
 ];
 
 const HERMES_CLI_COMMANDS_BY_ID = new Map(HERMES_CLI_COMMANDS.map((command) => [command.id, command]));
@@ -263,7 +474,13 @@ async function runHermesCli(args: string[], timeoutMs = 15000): Promise<HermesCl
       stderr: redactHermesOutput(result.stderr ?? ''),
     };
   } catch (error) {
-    const execError = error as NodeJS.ErrnoException & { stdout?: string; stderr?: string; code?: number | string; signal?: string; killed?: boolean };
+    const execError = error as NodeJS.ErrnoException & {
+      stdout?: string;
+      stderr?: string;
+      code?: number | string;
+      signal?: string;
+      killed?: boolean;
+    };
     return {
       command: cliPath,
       args,
@@ -486,7 +703,9 @@ async function listHermesCronJobs(limit: number): Promise<HermesCronJobsResponse
     .filter((job): job is HermesCronJobSummary & { sortTime: number } => job !== null);
   const active = jobs.filter((job) => job.enabled).length;
   const paused = jobs.filter((job) => !job.enabled || job.state === 'paused').length;
-  const errors = jobs.filter((job) => job.last_status === 'error' || !!job.last_error || !!job.last_delivery_error).length;
+  const errors = jobs.filter(
+    (job) => job.last_status === 'error' || !!job.last_error || !!job.last_delivery_error
+  ).length;
 
   return {
     jobs: jobs
@@ -502,8 +721,6 @@ async function listHermesCronJobs(limit: number): Promise<HermesCronJobsResponse
     errors,
   };
 }
-
-
 
 async function handleHermesCliConfigRoute(
   req: IncomingMessage,
@@ -556,22 +773,39 @@ async function handleHermesMemoryRoute(
   const { memoryPath, userPath, legacyMemoryPath, legacyUserPath } = getHermesMemoryPaths(hermesHome);
 
   if (req.method === 'GET') {
-    const [memory, user] = await Promise.all([
+    const [memoryResult, userResult] = await Promise.all([
       readFirstExistingTextFileOrEmpty([memoryPath, legacyMemoryPath]),
       readFirstExistingTextFileOrEmpty([userPath, legacyUserPath]),
     ]);
-    sendJson(res, 200, { success: true, data: { memory, user } });
+    sendJson(res, 200, {
+      success: true,
+      data: {
+        memory: memoryResult.content,
+        user: userResult.content,
+        memory_mtime: memoryResult.mtime,
+        user_mtime: userResult.mtime,
+      },
+    });
     return true;
   }
 
   if (req.method === 'PUT') {
     const body = (await readJsonBody(req)) as { memory?: unknown; user?: unknown } | undefined;
-    if (!body || typeof body.memory !== 'string' || typeof body.user !== 'string') {
-      sendJson(res, 400, { success: false, error: 'Expected { memory: string, user: string }', code: 'BAD_REQUEST' });
+    const hasMemory = body && typeof body.memory === 'string';
+    const hasUser = body && typeof body.user === 'string';
+    if (!body || (!hasMemory && !hasUser)) {
+      sendJson(res, 400, {
+        success: false,
+        error: 'Expected at least one of { memory: string, user: string }',
+        code: 'BAD_REQUEST',
+      });
       return true;
     }
     await fs.mkdir(path.dirname(memoryPath), { recursive: true });
-    await Promise.all([fs.writeFile(memoryPath, body.memory), fs.writeFile(userPath, body.user)]);
+    const writes: Promise<void>[] = [];
+    if (hasMemory) writes.push(fs.writeFile(memoryPath, body.memory as string));
+    if (hasUser) writes.push(fs.writeFile(userPath, body.user as string));
+    await Promise.all(writes);
     sendJson(res, 200, { success: true, data: undefined });
     return true;
   }
