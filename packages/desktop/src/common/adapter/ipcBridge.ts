@@ -686,6 +686,7 @@ export const mode = {
 
 export const acpConversation = {
   sendMessage: conversation.sendMessage,
+  getSlashCommands: conversation.getSlashCommands,
   responseStream: conversation.responseStream,
   getAvailableAgents: httpGet<AgentMetadata[], void>('/api/agents'),
   refreshCustomAgents: httpPost<void, void>('/api/agents/refresh'),

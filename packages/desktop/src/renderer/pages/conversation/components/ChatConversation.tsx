@@ -33,6 +33,7 @@ import AionrsModelSelector from '../platforms/aionrs/AionrsModelSelector';
 import { useAionrsModelSelection } from '../platforms/aionrs/useAionrsModelSelection';
 import { usePreviewContext } from '../Preview';
 import StarOfficeMonitorCard from '../platforms/openclaw/StarOfficeMonitorCard.tsx';
+import HermesHeaderActionsMenu from './HermesHeaderActionsMenu';
 // import SkillRuleGenerator from './components/SkillRuleGenerator'; // Temporarily hidden
 
 /** Check whether a specific skill is mounted on the conversation. */
@@ -331,6 +332,8 @@ const ChatConversation: React.FC<{
     return <GoogleModelSelector disabled={true} />;
   }, [conversation, isAionrsConversation, isMobile]);
 
+  const showHermesHeaderActions = conversation?.type === 'acp' && conversation.extra?.backend === 'hermes';
+
   if (conversation && conversation.type === 'aionrs') {
     return <AionrsConversationPanel key={conversation.id} conversation={conversation} sliderTitle={sliderTitle} />;
   }
@@ -383,6 +386,11 @@ const ChatConversation: React.FC<{
         </div>
       )}
       {modelSelector && <div className='shrink-0'>{modelSelector}</div>}
+      {showHermesHeaderActions && (
+        <div className='shrink-0'>
+          <HermesHeaderActionsMenu conversation_id={conversation.id} />
+        </div>
+      )}
     </div>
   );
 
