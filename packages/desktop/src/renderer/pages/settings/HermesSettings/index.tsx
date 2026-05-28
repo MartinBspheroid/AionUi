@@ -8,6 +8,7 @@ import { Tabs } from '@arco-design/web-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import SettingsPageWrapper from '../components/SettingsPageWrapper';
+import CliConfigPanel from './CliConfigPanel';
 import CronJobsPanel from './CronJobsPanel';
 import MemoryPanel from './MemoryPanel';
 import SessionsPanel from './SessionsPanel';
@@ -26,6 +27,9 @@ const HermesSettings: React.FC = () => {
         </Tabs.TabPane>
         <Tabs.TabPane key='cron' title={t('settings.hermes.cron.tabTitle')}>
           <CronJobsPanel />
+        </Tabs.TabPane>
+        <Tabs.TabPane key='cli' title={t('settings.hermes.cli.tabTitle')}>
+          <CliConfigPanel />
         </Tabs.TabPane>
       </Tabs>
     </SettingsPageWrapper>

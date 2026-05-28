@@ -967,6 +967,28 @@
         "lastRun": "Last run",
         "details": "Details"
       }
+    },
+    "cli": {
+      "tabTitle": "CLI & Config",
+      "title": "Hermes CLI & Config",
+      "description": "Inspect Hermes configuration and run allowlisted read-only CLI commands without leaving AionUi.",
+      "loadError": "Failed to load Hermes CLI/config overview",
+      "runError": "Failed to run Hermes CLI command",
+      "empty": "No Hermes CLI commands found",
+      "unsupportedTitle": "Hermes CLI/config API unavailable",
+      "unsupportedDescription": "Aioncore must provide GET and POST /api/agents/hermes/cli-config before this panel can inspect Hermes CLI state.",
+      "statusOutput": "Status",
+      "configOutput": "Configuration",
+      "commandsTitle": "Read-only CLI actions",
+      "commandsDescription": "These buttons run exact allowlisted commands and redact secrets before output reaches the browser.",
+      "timedOut": "Timed out",
+      "exitCode": "Exit {{code}}",
+      "summary": {
+        "cli": "CLI",
+        "home": "Hermes home",
+        "config": "Config file",
+        "env": "Secrets file"
+      }
     }
   }
 }

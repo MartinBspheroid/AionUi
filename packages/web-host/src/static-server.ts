@@ -11,11 +11,13 @@
  * shims that need local filesystem access before the generic /api/* proxy.
  */
 
+import { execFile } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import http, { type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { homedir, networkInterfaces } from 'node:os';
 import net, { type Socket } from 'node:net';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import serveHandler from 'serve-handler';
 
 export type StaticServerOptions = {
@@ -35,6 +37,7 @@ export type StaticServerHandle = {
 };
 
 const DEFAULT_PORT = 25808;
+const execFileAsync = promisify(execFile);
 
 function getLanIP(): string | null {
   const nets = networkInterfaces();
@@ -145,6 +148,151 @@ function getHermesMemoryPaths(hermesHome = getHermesHome()): {
     userPath: path.join(memoryDir, 'USER.md'),
     legacyMemoryPath: path.join(hermesHome, 'MEMORY.md'),
     legacyUserPath: path.join(hermesHome, 'USER.md'),
+  };
+}
+
+
+type HermesCliCommandSummary = {
+  id: string;
+  label: string;
+  description: string;
+  args: string[];
+  category: string;
+};
+
+type HermesCliRunResult = {
+  command: string;
+  args: string[];
+  exitCode: number | null;
+  stdout: string;
+  stderr: string;
+  timedOut?: boolean;
+};
+
+type HermesCliConfigResponse = {
+  hermesHome: string;
+  cliPath: string;
+  configPath: string;
+  envPath: string;
+  commands: HermesCliCommandSummary[];
+  overview: {
+    version?: HermesCliRunResult;
+    status?: HermesCliRunResult;
+    config?: HermesCliRunResult;
+  };
+};
+
+const HERMES_CLI_COMMANDS: HermesCliCommandSummary[] = [
+  { id: 'help', label: 'CLI help', description: 'Top-level Hermes CLI options and subcommands.', args: ['--help'], category: 'Help' },
+  { id: 'status', label: 'Status', description: 'Component status, active provider, auth providers, gateway, jobs, and sessions.', args: ['status'], category: 'Health' },
+  { id: 'doctor', label: 'Doctor', description: 'Detailed diagnostics for dependencies and config.', args: ['doctor'], category: 'Health' },
+  { id: 'config-show', label: 'Config: show', description: 'Redacted rendered Hermes configuration.', args: ['config', 'show'], category: 'Config' },
+  { id: 'config-check', label: 'Config: check', description: 'Check for missing or outdated configuration.', args: ['config', 'check'], category: 'Config' },
+  { id: 'config-help', label: 'Config: help', description: 'Hermes config subcommand options.', args: ['config', '--help'], category: 'Config' },
+  { id: 'config-path', label: 'Config: path', description: 'Print config.yaml path.', args: ['config', 'path'], category: 'Config' },
+  { id: 'config-env-path', label: 'Config: env path', description: 'Print .env path.', args: ['config', 'env-path'], category: 'Config' },
+  { id: 'model-help', label: 'Model: help', description: 'Model/provider picker help and options.', args: ['model', '--help'], category: 'Model' },
+  { id: 'tools-list', label: 'Tools: list', description: 'List enabled and available Hermes toolsets.', args: ['tools', 'list'], category: 'Tools & Skills' },
+  { id: 'tools-help', label: 'Tools: help', description: 'Tool management CLI options.', args: ['tools', '--help'], category: 'Tools & Skills' },
+  { id: 'skills-list', label: 'Skills: list', description: 'List installed Hermes skills.', args: ['skills', 'list'], category: 'Tools & Skills' },
+  { id: 'skills-help', label: 'Skills: help', description: 'Skill management CLI options.', args: ['skills', '--help'], category: 'Tools & Skills' },
+  { id: 'mcp-list', label: 'MCP: list', description: 'List configured MCP servers.', args: ['mcp', 'list'], category: 'MCP' },
+  { id: 'mcp-help', label: 'MCP: help', description: 'MCP server CLI options.', args: ['mcp', '--help'], category: 'MCP' },
+  { id: 'profile-list', label: 'Profiles: list', description: 'List Hermes profiles.', args: ['profile', 'list'], category: 'Profiles' },
+  { id: 'profile-help', label: 'Profiles: help', description: 'Profile CLI options.', args: ['profile', '--help'], category: 'Profiles' },
+  { id: 'sessions-list', label: 'Sessions: list', description: 'List recent Hermes sessions.', args: ['sessions', 'list'], category: 'Sessions' },
+  { id: 'sessions-stats', label: 'Sessions: stats', description: 'Session store statistics.', args: ['sessions', 'stats'], category: 'Sessions' },
+  { id: 'sessions-help', label: 'Sessions: help', description: 'Session CLI options.', args: ['sessions', '--help'], category: 'Sessions' },
+  { id: 'cron-list', label: 'Cron: list', description: 'List scheduled Hermes jobs.', args: ['cron', 'list'], category: 'Tasks' },
+  { id: 'cron-status', label: 'Cron: status', description: 'Scheduler status.', args: ['cron', 'status'], category: 'Tasks' },
+  { id: 'cron-help', label: 'Cron: help', description: 'Cron CLI options.', args: ['cron', '--help'], category: 'Tasks' },
+  { id: 'auth-list', label: 'Auth: list', description: 'List credential pool/auth provider status.', args: ['auth', 'list'], category: 'Auth' },
+  { id: 'auth-help', label: 'Auth: help', description: 'Credential pool CLI options.', args: ['auth', '--help'], category: 'Auth' },
+  { id: 'memory-status', label: 'Memory: status', description: 'Memory provider status.', args: ['memory', 'status'], category: 'Memory' },
+  { id: 'memory-help', label: 'Memory: help', description: 'Memory CLI options.', args: ['memory', '--help'], category: 'Memory' },
+  { id: 'honcho-status', label: 'Honcho: status', description: 'Honcho memory integration status.', args: ['honcho', 'status'], category: 'Memory' },
+  { id: 'plugins-list', label: 'Plugins: list', description: 'List installed/available Hermes plugins.', args: ['plugins', 'list'], category: 'Extensions' },
+  { id: 'plugins-help', label: 'Plugins: help', description: 'Plugin CLI options.', args: ['plugins', '--help'], category: 'Extensions' },
+  { id: 'gateway-status', label: 'Gateway: status', description: 'Gateway service status.', args: ['gateway', 'status'], category: 'Gateway' },
+  { id: 'gateway-help', label: 'Gateway: help', description: 'Gateway CLI options.', args: ['gateway', '--help'], category: 'Gateway' },
+  { id: 'webhook-list', label: 'Webhooks: list', description: 'List webhook subscriptions.', args: ['webhook', 'list'], category: 'Gateway' },
+  { id: 'webhook-help', label: 'Webhooks: help', description: 'Webhook CLI options.', args: ['webhook', '--help'], category: 'Gateway' },
+  { id: 'insights', label: 'Insights', description: 'Usage analytics summary.', args: ['insights'], category: 'Analytics' },
+];
+
+const HERMES_CLI_COMMANDS_BY_ID = new Map(HERMES_CLI_COMMANDS.map((command) => [command.id, command]));
+
+function getHermesCliPath(): string {
+  return process.env.HERMES_CLI_PATH || process.env.HERMES_CLI || 'hermes';
+}
+
+function redactHermesOutput(output: string): string {
+  const sensitiveProviderLine =
+    /^\s{2}(OpenRouter|OpenAI(?: \(STT\/TTS\))?|Google(?: \/ Gemini)?|Gemini|DeepSeek|xAI(?: \/ Grok)?|NVIDIA NIM|Z\.AI \/ GLM|Kimi(?: \/ Moonshot)?|StepFun Step Plan|MiniMax(?:-CN| \(China\))?|Firecrawl|Tavily|Browser Use|Browserbase|FAL|ElevenLabs|GitHub|Anthropic|Parallel)\b/i;
+  return output
+    .split('\n')
+    .map((line) => {
+      if (sensitiveProviderLine.test(line) && !/\(not set\)|not configured|not logged in/i.test(line)) {
+        return line.replace(/(✓\s*)\S.*$/, '$1[REDACTED]').replace(/\S{3,}\.\.\.\S{3,}/g, '[REDACTED]');
+      }
+      return line
+        .replace(/(api[_-]?key\s*[:=]\s*)\S+/gi, '$1[REDACTED]')
+        .replace(/(authorization\s*[:=]\s*(?:bearer\s+)?)\S+/gi, '$1[REDACTED]')
+        .replace(/((?:access|refresh|auth)[_-]?token\s*[:=]\s*)\S+/gi, '$1[REDACTED]')
+        .replace(/(password\s*[:=]\s*)\S+/gi, '$1[REDACTED]')
+        .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, '[REDACTED]')
+        .replace(/\bsk_[A-Za-z0-9_-]{8,}\b/g, '[REDACTED]');
+    })
+    .join('\n');
+}
+
+async function runHermesCli(args: string[], timeoutMs = 15000): Promise<HermesCliRunResult> {
+  const cliPath = getHermesCliPath();
+  try {
+    const result = await execFileAsync(cliPath, args, {
+      cwd: getHermesHome(),
+      timeout: timeoutMs,
+      maxBuffer: 1024 * 1024,
+      env: { ...process.env, NO_COLOR: process.env.NO_COLOR ?? '1' },
+    });
+    return {
+      command: cliPath,
+      args,
+      exitCode: 0,
+      stdout: redactHermesOutput(result.stdout ?? ''),
+      stderr: redactHermesOutput(result.stderr ?? ''),
+    };
+  } catch (error) {
+    const execError = error as NodeJS.ErrnoException & { stdout?: string; stderr?: string; code?: number | string; signal?: string; killed?: boolean };
+    return {
+      command: cliPath,
+      args,
+      exitCode: typeof execError.code === 'number' ? execError.code : null,
+      stdout: redactHermesOutput(execError.stdout ?? ''),
+      stderr: redactHermesOutput(execError.stderr || execError.message || ''),
+      timedOut: execError.killed === true || execError.signal === 'SIGTERM',
+    };
+  }
+}
+
+async function getHermesCliConfigOverview(): Promise<HermesCliConfigResponse> {
+  const hermesHome = getHermesHome();
+  const [configPath, envPath, version, status, config] = await Promise.all([
+    runHermesCli(['config', 'path'], 8000),
+    runHermesCli(['config', 'env-path'], 8000),
+    runHermesCli(['--version'], 8000),
+    runHermesCli(['status'], 15000),
+    runHermesCli(['config', 'show'], 15000),
+  ]);
+  const configPathLines = configPath.stdout.trim().split('\n');
+  const envPathLines = envPath.stdout.trim().split('\n');
+  return {
+    hermesHome,
+    cliPath: getHermesCliPath(),
+    configPath: configPathLines[configPathLines.length - 1] || path.join(hermesHome, 'config.yaml'),
+    envPath: envPathLines[envPathLines.length - 1] || path.join(hermesHome, '.env'),
+    commands: HERMES_CLI_COMMANDS,
+    overview: { version, status, config },
   };
 }
 
@@ -355,6 +503,43 @@ async function listHermesCronJobs(limit: number): Promise<HermesCronJobsResponse
   };
 }
 
+
+
+async function handleHermesCliConfigRoute(
+  req: IncomingMessage,
+  res: ServerResponse,
+  backendPort: number
+): Promise<boolean> {
+  const url = new URL(req.url ?? '', 'http://127.0.0.1');
+  if (url.pathname !== '/api/agents/hermes/cli-config') return false;
+
+  if (!(await isAuthenticated(req, backendPort))) {
+    sendJson(res, 401, { success: false, error: 'Authentication required', code: 'UNAUTHENTICATED' });
+    return true;
+  }
+
+  if (req.method === 'GET') {
+    sendJson(res, 200, { success: true, data: await getHermesCliConfigOverview() });
+    return true;
+  }
+
+  if (req.method === 'POST') {
+    const body = (await readJsonBody(req)) as { command_id?: unknown } | undefined;
+    const commandId = typeof body?.command_id === 'string' ? body.command_id : '';
+    const command = HERMES_CLI_COMMANDS_BY_ID.get(commandId);
+    if (!command) {
+      sendJson(res, 400, { success: false, error: 'Unknown or disallowed Hermes CLI command', code: 'BAD_COMMAND' });
+      return true;
+    }
+    const result = await runHermesCli(command.args, 20000);
+    sendJson(res, 200, { success: true, data: { command, result } });
+    return true;
+  }
+
+  sendJson(res, 405, { success: false, error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' });
+  return true;
+}
+
 async function handleHermesMemoryRoute(
   req: IncomingMessage,
   res: ServerResponse,
@@ -517,6 +702,9 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
         return;
       }
 
+      if (await handleHermesCliConfigRoute(req, res, opts.backendPort)) {
+        return;
+      }
       if (await handleHermesMemoryRoute(req, res, opts.backendPort)) {
         return;
       }

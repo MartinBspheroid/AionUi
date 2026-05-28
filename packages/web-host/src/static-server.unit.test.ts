@@ -448,6 +448,79 @@ describe('static-server', () => {
     }
   });
 
+  it('/api/agents/hermes/cli-config exposes authenticated redacted CLI overview and allowlisted commands', async () => {
+    const hermesHome = await fs.mkdtemp(path.join(os.tmpdir(), 'hermes-home-'));
+    const fakeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fake-hermes-cli-'));
+    const fakeCli = path.join(fakeDir, 'hermes');
+    const oldHome = process.env.HERMES_HOME;
+    const oldCli = process.env.HERMES_CLI_PATH;
+    process.env.HERMES_HOME = hermesHome;
+    process.env.HERMES_CLI_PATH = fakeCli;
+    await fs.writeFile(
+      fakeCli,
+      `#!/usr/bin/env node
+const args = process.argv.slice(2);
+if (args.join(' ') === '--version') console.log('hermes 9.9.9');
+else if (args.join(' ') === 'config path') console.log(process.env.HERMES_HOME + '/config.yaml');
+else if (args.join(' ') === 'config env-path') console.log(process.env.HERMES_HOME + '/.env');
+else if (args.join(' ') === 'status') console.log('  OpenAI        ✓ sk-proj-secret-token\\n  Kimi          ✓ sk-kimi-secret-token');
+else if (args.join(' ') === 'config show') console.log('model:\\n  api_key: sk-proj-secret-token\\nparallel: M4eF...3_kU');
+else if (args.join(' ') === 'tools list') console.log('terminal enabled');
+else if (args.includes('--help')) console.log('usage: hermes ' + args.join(' '));
+else console.log('ran ' + args.join(' '));
+`
+    );
+    await fs.chmod(fakeCli, 0o755);
+    try {
+      const backend = await startMockBackend((req, res) => {
+        if (req.url === '/api/auth/status') {
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ success: true, is_authenticated: true }));
+          return;
+        }
+        res.writeHead(404).end();
+      });
+      stopBackend = backend.close;
+      handle = await startStaticServer({ staticDir, backendPort: backend.port, port: 0 });
+
+      const overviewResponse = await fetch(`${handle.localUrl}/api/agents/hermes/cli-config`, {
+        headers: { cookie: 'aionui-session=test' },
+      });
+      expect(overviewResponse.status).toBe(200);
+      const overview = (await overviewResponse.json()) as { data: { configPath: string; envPath: string; commands: Array<{ id: string }>; overview: { status: { stdout: string }; config: { stdout: string } } } };
+      expect(overview.data.configPath).toBe(`${hermesHome}/config.yaml`);
+      expect(overview.data.envPath).toBe(`${hermesHome}/.env`);
+      expect(overview.data.commands.some((command) => command.id === 'tools-list')).toBe(true);
+      expect(overview.data.overview.status.stdout).toContain('[REDACTED]');
+      expect(overview.data.overview.status.stdout).not.toContain('sk-proj-secret-token');
+      expect(overview.data.overview.config.stdout).not.toContain('sk-proj-secret-token');
+
+      const runResponse = await fetch(`${handle.localUrl}/api/agents/hermes/cli-config`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie: 'aionui-session=test' },
+        body: JSON.stringify({ command_id: 'tools-list' }),
+      });
+      expect(runResponse.status).toBe(200);
+      const run = (await runResponse.json()) as { data: { command: { id: string }; result: { stdout: string } } };
+      expect(run.data.command.id).toBe('tools-list');
+      expect(run.data.result.stdout).toContain('terminal enabled');
+
+      const rejected = await fetch(`${handle.localUrl}/api/agents/hermes/cli-config`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie: 'aionui-session=test' },
+        body: JSON.stringify({ command_id: 'config-set' }),
+      });
+      expect(rejected.status).toBe(400);
+    } finally {
+      if (oldHome === undefined) delete process.env.HERMES_HOME;
+      else process.env.HERMES_HOME = oldHome;
+      if (oldCli === undefined) delete process.env.HERMES_CLI_PATH;
+      else process.env.HERMES_CLI_PATH = oldCli;
+      await fs.rm(hermesHome, { recursive: true, force: true });
+      await fs.rm(fakeDir, { recursive: true, force: true });
+    }
+  });
+
   it('/ws WebSocket upgrade is spliced to backend and 101 is relayed', async () => {
     // Mock backend that accepts any WebSocket upgrade and replies with 101.
     // We don't run a real ws protocol — just verify the upgrade response makes

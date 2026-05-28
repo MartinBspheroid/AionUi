@@ -811,6 +811,28 @@ export const acpConversation = {
       },
       void
     >('/api/agents/hermes/cron/jobs?limit=100', { silentStatuses: [404] }),
+    getCliConfig: httpGet<
+      {
+        hermesHome: string;
+        cliPath: string;
+        configPath: string;
+        envPath: string;
+        commands: Array<{ id: string; label: string; description: string; args: string[]; category: string }>;
+        overview: {
+          version?: { command: string; args: string[]; exitCode: number | null; stdout: string; stderr: string; timedOut?: boolean };
+          status?: { command: string; args: string[]; exitCode: number | null; stdout: string; stderr: string; timedOut?: boolean };
+          config?: { command: string; args: string[]; exitCode: number | null; stdout: string; stderr: string; timedOut?: boolean };
+        };
+      },
+      void
+    >('/api/agents/hermes/cli-config', { silentStatuses: [404] }),
+    runCliCommand: httpPost<
+      {
+        command: { id: string; label: string; description: string; args: string[]; category: string };
+        result: { command: string; args: string[]; exitCode: number | null; stdout: string; stderr: string; timedOut?: boolean };
+      },
+      { command_id: string }
+    >('/api/agents/hermes/cli-config'),
     getCapabilities: httpGet<
       {
         compress?: boolean;
