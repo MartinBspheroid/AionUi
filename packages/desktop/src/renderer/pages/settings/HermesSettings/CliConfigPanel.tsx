@@ -162,13 +162,13 @@ const CliConfigPanel: React.FC = () => {
           <div className='grid grid-cols-1 md:grid-cols-3 gap-12px'>
             <StatCard
               label={t('settings.hermes.cli.statusOutput')}
-              value={state.overview.status?.exitCode === 0 ? t('settings.hermes.cron.status.active') : '-'}
+              value={state.overview.status?.exitCode === 0 ? t('settings.hermes.cli.exitCode', { code: 0 }) : '-'}
               hint={formatCommand(state.overview.status)}
               valueClassName={state.overview.status?.exitCode === 0 ? 'text-success-6' : ''}
             />
             <StatCard
               label={t('settings.hermes.cli.configOutput')}
-              value={state.overview.config?.exitCode === 0 ? t('settings.hermes.cron.status.active') : '-'}
+              value={state.overview.config?.exitCode === 0 ? t('settings.hermes.cli.exitCode', { code: 0 }) : '-'}
               hint={formatCommand(state.overview.config)}
               valueClassName={state.overview.config?.exitCode === 0 ? 'text-success-6' : ''}
             />

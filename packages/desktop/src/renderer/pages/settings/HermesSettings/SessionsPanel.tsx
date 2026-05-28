@@ -59,7 +59,16 @@ const SessionsPanel: React.FC = () => {
     void load();
   }, [load]);
 
-  const latestSession = sessions[0];
+  const sortedSessions = useMemo(
+    () =>
+      [...sessions].sort((a, b) => {
+        const aTime = Date.parse(a.last_updated || a.session_start || '');
+        const bTime = Date.parse(b.last_updated || b.session_start || '');
+        return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
+      }),
+    [sessions]
+  );
+  const latestSession = sortedSessions[0];
 
   const columns = useMemo(
     () => [
@@ -129,7 +138,7 @@ const SessionsPanel: React.FC = () => {
       {error ? <Alert type='error' content={error} /> : null}
 
       <div className='grid grid-cols-1 md:grid-cols-3 gap-12px'>
-        <StatCard label={t('settings.hermes.cron.summary.total')} value={sessions.length} />
+        <StatCard label={t('settings.hermes.sessions.tabTitle')} value={sessions.length} />
         <StatCard label={t('settings.hermes.sessions.columns.model')} value={latestSession?.model || '-'} />
         <StatCard
           label={t('settings.hermes.sessions.columns.lastUpdated')}
@@ -139,10 +148,10 @@ const SessionsPanel: React.FC = () => {
       </div>
 
       <SectionCard title={t('settings.hermes.sessions.tabTitle')}>
-        {sessions.length === 0 ? (
+        {sortedSessions.length === 0 ? (
           <Empty description={t('settings.hermes.sessions.empty')} />
         ) : (
-          <Table rowKey='id' columns={columns} data={sessions} pagination={false} scroll={{ x: true }} />
+          <Table rowKey='id' columns={columns} data={sortedSessions} pagination={false} scroll={{ x: true }} />
         )}
       </SectionCard>
     </div>
