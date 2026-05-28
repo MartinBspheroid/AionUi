@@ -49,6 +49,9 @@ import type {
   HermesCheckpoint,
   HermesCliConfigResponse,
   HermesCliRunResponse,
+  HermesCronCliResponse,
+  HermesCronJobEdit,
+  HermesCronJobInput,
   HermesCronJobsResponse,
   HermesMemoryPayload,
   HermesMemoryUpdate,
@@ -783,6 +786,23 @@ export const acpConversation = {
     listCronJobs: httpGet<HermesCronJobsResponse, void>('/api/agents/hermes/cron/jobs?limit=100', {
       silentStatuses: [404],
     }),
+    createCronJob: httpPost<HermesCronCliResponse, HermesCronJobInput>('/api/agents/hermes/cron/jobs'),
+    updateCronJob: httpPatch<HermesCronCliResponse, { id: string; patch: HermesCronJobEdit }>(
+      (p) => `/api/agents/hermes/cron/jobs/${encodeURIComponent(p.id)}`,
+      (p) => p.patch
+    ),
+    deleteCronJob: httpDelete<HermesCronCliResponse, { id: string }>(
+      (p) => `/api/agents/hermes/cron/jobs/${encodeURIComponent(p.id)}`
+    ),
+    runCronJob: httpPost<HermesCronCliResponse, { id: string }>(
+      (p) => `/api/agents/hermes/cron/jobs/${encodeURIComponent(p.id)}/run`
+    ),
+    pauseCronJob: httpPost<HermesCronCliResponse, { id: string }>(
+      (p) => `/api/agents/hermes/cron/jobs/${encodeURIComponent(p.id)}/pause`
+    ),
+    resumeCronJob: httpPost<HermesCronCliResponse, { id: string }>(
+      (p) => `/api/agents/hermes/cron/jobs/${encodeURIComponent(p.id)}/resume`
+    ),
     listSkills: httpGet<HermesSkillsResponse, void>('/api/agents/hermes/skills', { silentStatuses: [404] }),
     getSkill: httpGet<HermesSkillDetail, { id: string }>(
       (p) => `/api/agents/hermes/skills?id=${encodeURIComponent(p.id)}`,

@@ -839,28 +839,184 @@ async function handleHermesSessionsRoute(
   return true;
 }
 
+type HermesCronJobInput = {
+  schedule?: unknown;
+  prompt?: unknown;
+  name?: unknown;
+  deliver?: unknown;
+  repeat?: unknown;
+  skills?: unknown;
+  script?: unknown;
+  no_agent?: unknown;
+  workdir?: unknown;
+  profile?: unknown;
+};
+
+type HermesCronEditInput = HermesCronJobInput & {
+  add_skills?: unknown;
+  remove_skills?: unknown;
+  clear_skills?: unknown;
+};
+
+function pushIfString(args: string[], flag: string, value: unknown): void {
+  if (typeof value !== 'string') return;
+  const trimmed = value.trim();
+  if (!trimmed) return;
+  args.push(flag, trimmed);
+}
+
+function pushIfFiniteNumber(args: string[], flag: string, value: unknown): void {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return;
+  args.push(flag, String(value));
+}
+
+function pushIfStringArray(args: string[], flag: string, value: unknown): void {
+  if (!Array.isArray(value)) return;
+  for (const entry of value) {
+    if (typeof entry === 'string' && entry.trim().length > 0) {
+      args.push(flag, entry.trim());
+    }
+  }
+}
+
+function buildCronCreateArgs(body: HermesCronJobInput): { args: string[]; error?: string } {
+  if (typeof body.schedule !== 'string' || !body.schedule.trim()) {
+    return { args: [], error: 'schedule (string) is required' };
+  }
+  const args: string[] = ['cron', 'create', body.schedule.trim()];
+  if (typeof body.prompt === 'string' && body.prompt.length > 0) {
+    args.push(body.prompt);
+  }
+  pushIfString(args, '--name', body.name);
+  pushIfString(args, '--deliver', body.deliver);
+  pushIfFiniteNumber(args, '--repeat', body.repeat);
+  pushIfString(args, '--script', body.script);
+  pushIfString(args, '--workdir', body.workdir);
+  pushIfString(args, '--profile', body.profile);
+  pushIfStringArray(args, '--skill', body.skills);
+  if (body.no_agent === true) args.push('--no-agent');
+  return { args };
+}
+
+function buildCronEditArgs(jobId: string, body: HermesCronEditInput): string[] {
+  const args: string[] = ['cron', 'edit', jobId];
+  pushIfString(args, '--schedule', body.schedule);
+  if (typeof body.prompt === 'string') args.push('--prompt', body.prompt);
+  pushIfString(args, '--name', body.name);
+  pushIfString(args, '--deliver', body.deliver);
+  pushIfFiniteNumber(args, '--repeat', body.repeat);
+  if (typeof body.script === 'string') args.push('--script', body.script);
+  if (typeof body.workdir === 'string') args.push('--workdir', body.workdir);
+  if (typeof body.profile === 'string') args.push('--profile', body.profile);
+  pushIfStringArray(args, '--skill', body.skills);
+  pushIfStringArray(args, '--add-skill', body.add_skills);
+  pushIfStringArray(args, '--remove-skill', body.remove_skills);
+  if (body.clear_skills === true) args.push('--clear-skills');
+  if (body.no_agent === true) args.push('--no-agent');
+  else if (body.no_agent === false) args.push('--agent');
+  return args;
+}
+
+function isCronJobId(value: string | undefined): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9_-]{4,64}$/.test(value);
+}
+
+async function findCronJobById(jobId: string): Promise<HermesCronJobSummary | null> {
+  const summary = await listHermesCronJobs(500);
+  return summary.jobs.find((job) => job.id === jobId) ?? null;
+}
+
+async function executeCronCli(args: string[]): Promise<{ status: number; body: unknown }> {
+  const result = await runHermesCli(args, 25000);
+  if (result.exitCode === 0) {
+    return { status: 200, body: { success: true, data: { result } } };
+  }
+  return {
+    status: 400,
+    body: {
+      success: false,
+      error: result.stderr || result.stdout || 'Hermes CLI command failed',
+      code: result.timedOut ? 'CLI_TIMEOUT' : 'CLI_FAILED',
+      data: { result },
+    },
+  };
+}
+
 async function handleHermesCronJobsRoute(
   req: IncomingMessage,
   res: ServerResponse,
   backendPort: number
 ): Promise<boolean> {
   const url = new URL(req.url ?? '', 'http://127.0.0.1');
-  if (url.pathname !== '/api/agents/hermes/cron/jobs') return false;
+  const isList = url.pathname === '/api/agents/hermes/cron/jobs';
+  const itemMatch = /^\/api\/agents\/hermes\/cron\/jobs\/([^/]+)(?:\/(run|pause|resume))?$/.exec(url.pathname);
+  if (!isList && !itemMatch) return false;
 
   if (!(await isAuthenticated(req, backendPort))) {
     sendJson(res, 401, { success: false, error: 'Authentication required', code: 'UNAUTHENTICATED' });
     return true;
   }
 
-  if (req.method !== 'GET') {
+  if (isList) {
+    if (req.method === 'GET') {
+      const requestedLimit = Number.parseInt(url.searchParams.get('limit') ?? '', 10);
+      const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 200) : 100;
+      const data = await listHermesCronJobs(limit);
+      sendJson(res, 200, { success: true, data });
+      return true;
+    }
+    if (req.method === 'POST') {
+      const body = ((await readJsonBody(req)) ?? {}) as HermesCronJobInput;
+      const { args, error } = buildCronCreateArgs(body);
+      if (error) {
+        sendJson(res, 400, { success: false, error, code: 'BAD_REQUEST' });
+        return true;
+      }
+      const outcome = await executeCronCli(args);
+      sendJson(res, outcome.status, outcome.body);
+      return true;
+    }
     sendJson(res, 405, { success: false, error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' });
     return true;
   }
 
-  const requestedLimit = Number.parseInt(url.searchParams.get('limit') ?? '', 10);
-  const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 200) : 100;
-  const data = await listHermesCronJobs(limit);
-  sendJson(res, 200, { success: true, data });
+  if (!itemMatch) return false;
+  const rawId = decodeURIComponent(itemMatch[1]);
+  const action = itemMatch[2];
+  if (!isCronJobId(rawId)) {
+    sendJson(res, 400, { success: false, error: 'Invalid job id', code: 'BAD_REQUEST' });
+    return true;
+  }
+  // Verify the job exists before mutating, so callers see a clean 404.
+  const existing = await findCronJobById(rawId);
+  if (!existing) {
+    sendJson(res, 404, { success: false, error: 'Job not found', code: 'NOT_FOUND' });
+    return true;
+  }
+
+  if (!action && req.method === 'PATCH') {
+    const body = ((await readJsonBody(req)) ?? {}) as HermesCronEditInput;
+    const args = buildCronEditArgs(rawId, body);
+    if (args.length <= 3) {
+      sendJson(res, 400, { success: false, error: 'No edits supplied', code: 'BAD_REQUEST' });
+      return true;
+    }
+    const outcome = await executeCronCli(args);
+    sendJson(res, outcome.status, outcome.body);
+    return true;
+  }
+  if (!action && req.method === 'DELETE') {
+    const outcome = await executeCronCli(['cron', 'remove', rawId]);
+    sendJson(res, outcome.status, outcome.body);
+    return true;
+  }
+  if (action && req.method === 'POST') {
+    const outcome = await executeCronCli(['cron', action, rawId]);
+    sendJson(res, outcome.status, outcome.body);
+    return true;
+  }
+
+  sendJson(res, 405, { success: false, error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' });
   return true;
 }
 

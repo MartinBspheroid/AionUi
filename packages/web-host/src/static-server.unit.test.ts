@@ -595,6 +595,97 @@ else console.log('ran ' + args.join(' '));
     expect(status).toMatch(/HTTP\/1\.1 101/i);
   });
 
+  it('/api/agents/hermes/cron/jobs CRUD shells out to the Hermes CLI with the expected argv', async () => {
+    const hermesHome = await fs.mkdtemp(path.join(os.tmpdir(), 'hermes-home-'));
+    const fakeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fake-hermes-cron-cli-'));
+    const fakeCli = path.join(fakeDir, 'hermes');
+    const capturePath = path.join(fakeDir, 'argv-capture.log');
+    const oldHome = process.env.HERMES_HOME;
+    const oldCli = process.env.HERMES_CLI_PATH;
+    process.env.HERMES_HOME = hermesHome;
+    process.env.HERMES_CLI_PATH = fakeCli;
+    // jobs.json seeded so the id-scoped routes find the job before mutating.
+    await fs.mkdir(path.join(hermesHome, 'cron'), { recursive: true });
+    await fs.writeFile(
+      path.join(hermesHome, 'cron', 'jobs.json'),
+      JSON.stringify({
+        jobs: [
+          {
+            id: 'abcd1234',
+            name: 'Existing job',
+            enabled: true,
+            schedule: { kind: 'cron', expr: '0 9 * * *', display: '0 9 * * *' },
+            deliver: 'local',
+            skills: [],
+          },
+        ],
+      })
+    );
+    await fs.writeFile(
+      fakeCli,
+      `#!/usr/bin/env node
+const fs = require('fs');
+fs.appendFileSync(${JSON.stringify(capturePath)}, JSON.stringify(process.argv.slice(2)) + '\\n');
+process.exit(0);
+`
+    );
+    await fs.chmod(fakeCli, 0o755);
+    try {
+      const backend = await startMockBackend((req, res) => {
+        if (req.url === '/api/auth/status') {
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ success: true, is_authenticated: true }));
+          return;
+        }
+        res.writeHead(404).end();
+      });
+      stopBackend = backend.close;
+      handle = await startStaticServer({ staticDir, backendPort: backend.port, port: 0 });
+
+      const createResp = await fetch(`${handle.localUrl}/api/agents/hermes/cron/jobs`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie: 'aionui-session=test' },
+        body: JSON.stringify({ schedule: '30m', prompt: 'Build digest', skills: ['dogfood'], name: 'Daily' }),
+      });
+      expect(createResp.status).toBe(200);
+
+      const runResp = await fetch(`${handle.localUrl}/api/agents/hermes/cron/jobs/abcd1234/run`, {
+        method: 'POST',
+        headers: { cookie: 'aionui-session=test' },
+      });
+      expect(runResp.status).toBe(200);
+
+      const missingResp = await fetch(`${handle.localUrl}/api/agents/hermes/cron/jobs/zzzz9999/run`, {
+        method: 'POST',
+        headers: { cookie: 'aionui-session=test' },
+      });
+      expect(missingResp.status).toBe(404);
+
+      const badCreate = await fetch(`${handle.localUrl}/api/agents/hermes/cron/jobs`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie: 'aionui-session=test' },
+        body: JSON.stringify({ prompt: 'no schedule' }),
+      });
+      expect(badCreate.status).toBe(400);
+
+      const captured = (await fs.readFile(capturePath, 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      expect(captured).toEqual([
+        ['cron', 'create', '30m', 'Build digest', '--name', 'Daily', '--skill', 'dogfood'],
+        ['cron', 'run', 'abcd1234'],
+      ]);
+    } finally {
+      if (oldHome === undefined) delete process.env.HERMES_HOME;
+      else process.env.HERMES_HOME = oldHome;
+      if (oldCli === undefined) delete process.env.HERMES_CLI_PATH;
+      else process.env.HERMES_CLI_PATH = oldCli;
+      await fs.rm(hermesHome, { recursive: true, force: true });
+      await fs.rm(fakeDir, { recursive: true, force: true });
+    }
+  });
+
   it('/api/agents/hermes/skills enumerates SKILL.md files grouped by category', async () => {
     const hermesHome = await fs.mkdtemp(path.join(os.tmpdir(), 'hermes-home-'));
     const oldHome = process.env.HERMES_HOME;

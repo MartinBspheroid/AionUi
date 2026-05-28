@@ -62,6 +62,29 @@ export type HermesCronJobsResponse = {
   errors: number;
 };
 
+export type HermesCronJobInput = {
+  schedule: string;
+  prompt?: string;
+  name?: string;
+  deliver?: string;
+  repeat?: number;
+  skills?: string[];
+  script?: string;
+  no_agent?: boolean;
+  workdir?: string;
+  profile?: string;
+};
+
+export type HermesCronJobEdit = Partial<HermesCronJobInput> & {
+  add_skills?: string[];
+  remove_skills?: string[];
+  clear_skills?: boolean;
+};
+
+export type HermesCronCliResponse = {
+  result: HermesCliRunResult;
+};
+
 export type HermesCliRunResult = {
   command: string;
   args: string[];

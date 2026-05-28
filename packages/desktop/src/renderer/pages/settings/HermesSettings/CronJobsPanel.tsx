@@ -6,14 +6,62 @@
 
 import { ipcBridge } from '@/common';
 import { isBackendHttpError } from '@/common/adapter/httpBridge';
-import type { HermesCronJobSummary, HermesCronJobsResponse } from '@/common/types/hermes/hermesExt';
-import { Alert, Button, Empty, Table, Tag, Typography } from '@arco-design/web-react';
-import { Refresh } from '@icon-park/react';
+import type {
+  HermesCronJobEdit,
+  HermesCronJobInput,
+  HermesCronJobSummary,
+  HermesCronJobsResponse,
+  HermesSkillSummary,
+} from '@/common/types/hermes/hermesExt';
+import {
+  Alert,
+  Button,
+  Drawer,
+  Empty,
+  Form,
+  Input,
+  InputNumber,
+  Message,
+  Modal,
+  Select,
+  Switch,
+  Table,
+  Tag,
+  Typography,
+} from '@arco-design/web-react';
+import { Delete, Edit, Pause, Play, PlayOne, Plus, Refresh } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PanelHeader, PanelLoading, SectionCard, StatCard } from './components';
 
+const { TextArea } = Input;
+
 type HermesCronJobsState = HermesCronJobsResponse;
+
+type CronFormValues = {
+  schedule: string;
+  prompt?: string;
+  name?: string;
+  deliver?: string;
+  repeat?: number;
+  skills?: string[];
+  script?: string;
+  workdir?: string;
+  profile?: string;
+  no_agent?: boolean;
+};
+
+const EMPTY_FORM: CronFormValues = {
+  schedule: '',
+  prompt: '',
+  name: '',
+  deliver: '',
+  skills: [],
+  script: '',
+  workdir: '',
+  profile: '',
+  no_agent: false,
+};
 
 function formatDateTime(value?: string): string {
   if (!value) return '';
@@ -27,12 +75,84 @@ function formatRepeat(job: HermesCronJobSummary): string {
   return `${job.repeat_completed ?? 0}/${job.repeat_times}`;
 }
 
+function jobToFormValues(job: HermesCronJobSummary): CronFormValues {
+  return {
+    schedule: job.schedule_expr || job.schedule_display || '',
+    prompt: '',
+    name: job.name || '',
+    deliver: job.deliver || '',
+    repeat: job.repeat_times ?? undefined,
+    skills: job.skills ?? [],
+    script: job.script || '',
+    workdir: job.workdir || '',
+    profile: '',
+    no_agent: !!job.no_agent,
+  };
+}
+
+function valuesToCreatePayload(values: CronFormValues): HermesCronJobInput {
+  return {
+    schedule: values.schedule.trim(),
+    prompt: values.prompt?.trim() || undefined,
+    name: values.name?.trim() || undefined,
+    deliver: values.deliver?.trim() || undefined,
+    repeat: typeof values.repeat === 'number' ? values.repeat : undefined,
+    skills: values.skills && values.skills.length > 0 ? values.skills : undefined,
+    script: values.script?.trim() || undefined,
+    workdir: values.workdir?.trim() || undefined,
+    profile: values.profile?.trim() || undefined,
+    no_agent: values.no_agent === true ? true : undefined,
+  };
+}
+
+function valuesToEditPayload(values: CronFormValues, original: HermesCronJobSummary): HermesCronJobEdit {
+  const patch: HermesCronJobEdit = {};
+  const trim = (s?: string): string | undefined => (typeof s === 'string' ? s.trim() : undefined);
+  if (trim(values.schedule) && trim(values.schedule) !== (original.schedule_expr || original.schedule_display)) {
+    patch.schedule = trim(values.schedule);
+  }
+  const promptInput = values.prompt?.trim() || '';
+  if (promptInput) patch.prompt = promptInput;
+  if (trim(values.name) !== (original.name || '')) patch.name = trim(values.name) || '';
+  if (trim(values.deliver) !== (original.deliver || '')) patch.deliver = trim(values.deliver) || '';
+  if ((values.repeat ?? null) !== (original.repeat_times ?? null)) {
+    if (typeof values.repeat === 'number') patch.repeat = values.repeat;
+  }
+  const desiredSkills = values.skills ?? [];
+  const originalSkills = original.skills ?? [];
+  const skillsChanged =
+    desiredSkills.length !== originalSkills.length || desiredSkills.some((skill, idx) => skill !== originalSkills[idx]);
+  if (skillsChanged) {
+    if (desiredSkills.length === 0) patch.clear_skills = true;
+    else patch.skills = desiredSkills;
+  }
+  if ((values.script || '') !== (original.script || '')) patch.script = values.script || '';
+  if ((values.workdir || '') !== (original.workdir || '')) patch.workdir = values.workdir || '';
+  if (values.no_agent !== !!original.no_agent) patch.no_agent = values.no_agent === true;
+  return patch;
+}
+
+function isUnsupportedError(error: unknown): boolean {
+  return isBackendHttpError(error) && error.status === 404;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (isBackendHttpError(error) && error.backendMessage.trim().length > 0) return error.backendMessage;
+  return fallback;
+}
+
 const CronJobsPanel: React.FC = () => {
   const { t } = useTranslation();
   const [state, setState] = useState<HermesCronJobsState>({ jobs: [], total: 0, active: 0, paused: 0, errors: 0 });
   const [loading, setLoading] = useState(true);
   const [unsupported, setUnsupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editing, setEditing] = useState<HermesCronJobSummary | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [skills, setSkills] = useState<HermesSkillSummary[]>([]);
+  const [form] = Form.useForm<CronFormValues>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -42,7 +162,7 @@ const CronJobsPanel: React.FC = () => {
       setState(result);
       setUnsupported(false);
     } catch (loadError) {
-      if (isBackendHttpError(loadError) && loadError.status === 404) {
+      if (isUnsupportedError(loadError)) {
         setUnsupported(true);
         setState({ jobs: [], total: 0, active: 0, paused: 0, errors: 0 });
         return;
@@ -53,9 +173,136 @@ const CronJobsPanel: React.FC = () => {
     }
   }, [t]);
 
+  const loadSkills = useCallback(async () => {
+    try {
+      const result = await ipcBridge.acpConversation.hermesExt.listSkills.invoke();
+      setSkills(result.skills);
+    } catch {
+      // Skill picker is optional; failing silently is fine.
+    }
+  }, []);
+
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadSkills();
+  }, [load, loadSkills]);
+
+  const markBusy = useCallback((id: string, on: boolean) => {
+    setBusyIds((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  const openCreate = useCallback(() => {
+    setEditing(null);
+    form.setFieldsValue(EMPTY_FORM);
+    setDrawerOpen(true);
+  }, [form]);
+
+  const openEdit = useCallback(
+    (job: HermesCronJobSummary) => {
+      setEditing(job);
+      form.setFieldsValue(jobToFormValues(job));
+      setDrawerOpen(true);
+    },
+    [form]
+  );
+
+  const handleSubmit = useCallback(async () => {
+    let values: CronFormValues;
+    try {
+      values = await form.validate();
+    } catch {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      if (editing) {
+        const patch = valuesToEditPayload(values, editing);
+        if (Object.keys(patch).length === 0) {
+          Message.info(t('settings.hermes.cron.form.noChanges'));
+          setSubmitting(false);
+          return;
+        }
+        await ipcBridge.acpConversation.hermesExt.updateCronJob.invoke({ id: editing.id, patch });
+        Message.success(t('settings.hermes.cron.toasts.updated'));
+      } else {
+        await ipcBridge.acpConversation.hermesExt.createCronJob.invoke(valuesToCreatePayload(values));
+        Message.success(t('settings.hermes.cron.toasts.created'));
+      }
+      setDrawerOpen(false);
+      await load();
+    } catch (submitError) {
+      Message.error(getErrorMessage(submitError, t('settings.hermes.cron.toasts.saveFailed')));
+    } finally {
+      setSubmitting(false);
+    }
+  }, [editing, form, load, t]);
+
+  const runJob = useCallback(
+    async (job: HermesCronJobSummary) => {
+      markBusy(job.id, true);
+      try {
+        await ipcBridge.acpConversation.hermesExt.runCronJob.invoke({ id: job.id });
+        Message.success(t('settings.hermes.cron.toasts.queuedRun'));
+      } catch (runError) {
+        Message.error(getErrorMessage(runError, t('settings.hermes.cron.toasts.runFailed')));
+      } finally {
+        markBusy(job.id, false);
+      }
+    },
+    [markBusy, t]
+  );
+
+  const togglePause = useCallback(
+    async (job: HermesCronJobSummary) => {
+      markBusy(job.id, true);
+      try {
+        const shouldPause = job.enabled && job.state !== 'paused';
+        if (shouldPause) {
+          await ipcBridge.acpConversation.hermesExt.pauseCronJob.invoke({ id: job.id });
+          Message.success(t('settings.hermes.cron.toasts.paused'));
+        } else {
+          await ipcBridge.acpConversation.hermesExt.resumeCronJob.invoke({ id: job.id });
+          Message.success(t('settings.hermes.cron.toasts.resumed'));
+        }
+        await load();
+      } catch (toggleError) {
+        Message.error(getErrorMessage(toggleError, t('settings.hermes.cron.toasts.toggleFailed')));
+      } finally {
+        markBusy(job.id, false);
+      }
+    },
+    [load, markBusy, t]
+  );
+
+  const deleteJob = useCallback(
+    (job: HermesCronJobSummary) => {
+      Modal.confirm({
+        title: t('settings.hermes.cron.confirmDelete.title'),
+        content: t('settings.hermes.cron.confirmDelete.content', { name: job.name || job.id }),
+        okButtonProps: { status: 'danger' },
+        onOk: async () => {
+          markBusy(job.id, true);
+          try {
+            await ipcBridge.acpConversation.hermesExt.deleteCronJob.invoke({ id: job.id });
+            Message.success(t('settings.hermes.cron.toasts.deleted'));
+            await load();
+          } catch (deleteError) {
+            Message.error(getErrorMessage(deleteError, t('settings.hermes.cron.toasts.deleteFailed')));
+          } finally {
+            markBusy(job.id, false);
+          }
+        },
+      });
+    },
+    [load, markBusy, t]
+  );
+
+  const skillOptions = useMemo(() => skills.map((skill) => ({ label: skill.id, value: skill.name })), [skills]);
 
   const columns = useMemo(
     () => [
@@ -147,8 +394,51 @@ const CronJobsPanel: React.FC = () => {
           );
         },
       },
+      {
+        title: t('settings.hermes.cron.columns.actions'),
+        dataIndex: 'actions',
+        render: (_value: unknown, record: HermesCronJobSummary) => {
+          const busy = busyIds.has(record.id);
+          const paused = !record.enabled || record.state === 'paused';
+          return (
+            <div className='flex items-center gap-4px'>
+              <Button
+                size='mini'
+                type='text'
+                icon={<PlayOne theme='outline' />}
+                loading={busy}
+                onClick={() => void runJob(record)}
+                title={t('settings.hermes.cron.actions.run')}
+              />
+              <Button
+                size='mini'
+                type='text'
+                icon={paused ? <Play theme='outline' /> : <Pause theme='outline' />}
+                loading={busy}
+                onClick={() => void togglePause(record)}
+                title={t(paused ? 'settings.hermes.cron.actions.resume' : 'settings.hermes.cron.actions.pause')}
+              />
+              <Button
+                size='mini'
+                type='text'
+                icon={<Edit theme='outline' />}
+                onClick={() => openEdit(record)}
+                title={t('settings.hermes.cron.actions.edit')}
+              />
+              <Button
+                size='mini'
+                type='text'
+                status='danger'
+                icon={<Delete theme='outline' />}
+                onClick={() => deleteJob(record)}
+                title={t('settings.hermes.cron.actions.delete')}
+              />
+            </div>
+          );
+        },
+      },
     ],
-    [t]
+    [busyIds, deleteJob, openEdit, runJob, t, togglePause]
   );
 
   if (loading) {
@@ -171,9 +461,14 @@ const CronJobsPanel: React.FC = () => {
         title={t('settings.hermes.cron.title')}
         description={t('settings.hermes.cron.description')}
         action={
-          <Button icon={<Refresh />} onClick={() => void load()}>
-            {t('common.reload')}
-          </Button>
+          <>
+            <Button icon={<Refresh />} onClick={() => void load()}>
+              {t('common.reload')}
+            </Button>
+            <Button type='primary' icon={<Plus />} onClick={openCreate}>
+              {t('settings.hermes.cron.actions.create')}
+            </Button>
+          </>
         }
       />
 
@@ -205,6 +500,60 @@ const CronJobsPanel: React.FC = () => {
           <Table rowKey='id' columns={columns} data={state.jobs} pagination={false} scroll={{ x: true }} />
         )}
       </SectionCard>
+
+      <Drawer
+        visible={drawerOpen}
+        title={editing ? t('settings.hermes.cron.form.editTitle') : t('settings.hermes.cron.form.createTitle')}
+        onCancel={() => setDrawerOpen(false)}
+        onOk={() => void handleSubmit()}
+        okText={editing ? t('common.save') : t('settings.hermes.cron.actions.create')}
+        confirmLoading={submitting}
+        width={520}
+      >
+        <Form layout='vertical' form={form} initialValues={EMPTY_FORM}>
+          <Form.Item
+            label={t('settings.hermes.cron.form.schedule')}
+            field='schedule'
+            rules={[{ required: !editing, message: t('settings.hermes.cron.form.scheduleRequired') }]}
+            extra={t('settings.hermes.cron.form.scheduleHint')}
+          >
+            <Input placeholder='30m | every 2h | 0 9 * * *' />
+          </Form.Item>
+          <Form.Item label={t('settings.hermes.cron.form.name')} field='name'>
+            <Input placeholder={t('settings.hermes.cron.form.namePlaceholder')} />
+          </Form.Item>
+          <Form.Item
+            label={editing ? t('settings.hermes.cron.form.promptEdit') : t('settings.hermes.cron.form.prompt')}
+            field='prompt'
+            extra={editing ? t('settings.hermes.cron.form.promptEditHint') : undefined}
+          >
+            <TextArea autoSize={{ minRows: 4, maxRows: 12 }} />
+          </Form.Item>
+          <Form.Item label={t('settings.hermes.cron.form.skills')} field='skills'>
+            <Select mode='multiple' options={skillOptions} allowCreate placeholder='dogfood' />
+          </Form.Item>
+          <Form.Item label={t('settings.hermes.cron.form.deliver')} field='deliver' extra='origin | local | telegram'>
+            <Input placeholder='local' />
+          </Form.Item>
+          <Form.Item label={t('settings.hermes.cron.form.repeat')} field='repeat'>
+            <InputNumber min={1} placeholder='∞' style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item label={t('settings.hermes.cron.form.script')} field='script'>
+            <Input placeholder='watchdog.py' />
+          </Form.Item>
+          <Form.Item label={t('settings.hermes.cron.form.workdir')} field='workdir'>
+            <Input placeholder='/abs/path' />
+          </Form.Item>
+          <Form.Item label={t('settings.hermes.cron.form.noAgent')} field='no_agent' triggerPropName='checked'>
+            <Switch />
+          </Form.Item>
+          {!editing ? (
+            <Form.Item label={t('settings.hermes.cron.form.profile')} field='profile'>
+              <Input placeholder='default' />
+            </Form.Item>
+          ) : null}
+        </Form>
+      </Drawer>
     </div>
   );
 };

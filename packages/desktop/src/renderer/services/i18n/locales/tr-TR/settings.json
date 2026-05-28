@@ -962,6 +962,101 @@
         "categories": "Categories",
         "filtered": "Matching filter"
       }
+    },
+    "cron": {
+      "tabTitle": "Tasks",
+      "title": "Hermes Cron Jobs",
+      "description": "Browse read-only scheduled jobs from the active Hermes profile.",
+      "loadError": "Failed to load Hermes cron jobs",
+      "empty": "No Hermes cron jobs found",
+      "unsupportedTitle": "Hermes cron API unavailable",
+      "unsupportedDescription": "Aioncore must provide GET /api/agents/hermes/cron/jobs before this panel can list cron jobs.",
+      "summary": {
+        "total": "Total",
+        "active": "Active",
+        "paused": "Paused",
+        "errors": "Errors"
+      },
+      "status": {
+        "active": "Active",
+        "paused": "Paused",
+        "error": "Error"
+      },
+      "columns": {
+        "name": "Name",
+        "status": "Status",
+        "schedule": "Schedule",
+        "nextRun": "Next run",
+        "lastRun": "Last run",
+        "details": "Details",
+        "actions": "Actions"
+      },
+      "actions": {
+        "create": "New job",
+        "edit": "Edit",
+        "delete": "Delete",
+        "run": "Run now",
+        "pause": "Pause",
+        "resume": "Resume"
+      },
+      "confirmDelete": {
+        "title": "Delete scheduled job?",
+        "content": "Delete \"{{name}}\"? This cannot be undone."
+      },
+      "form": {
+        "createTitle": "Schedule a new job",
+        "editTitle": "Edit scheduled job",
+        "schedule": "Schedule",
+        "scheduleHint": "Cron expression or shortcut: 30m, every 2h, 0 9 * * *",
+        "scheduleRequired": "Schedule is required",
+        "name": "Name",
+        "namePlaceholder": "Daily digest",
+        "prompt": "Prompt",
+        "promptEdit": "Replace prompt",
+        "promptEditHint": "Leave empty to keep the existing prompt.",
+        "skills": "Skills",
+        "deliver": "Deliver to",
+        "repeat": "Repeat",
+        "script": "Script",
+        "workdir": "Workdir",
+        "noAgent": "Run script only (no agent)",
+        "profile": "Profile",
+        "noChanges": "No changes to save."
+      },
+      "toasts": {
+        "created": "Job created.",
+        "updated": "Job updated.",
+        "deleted": "Job removed.",
+        "paused": "Job paused.",
+        "resumed": "Job resumed.",
+        "queuedRun": "Run queued for next tick.",
+        "saveFailed": "Failed to save the job.",
+        "deleteFailed": "Failed to delete the job.",
+        "runFailed": "Failed to queue a run.",
+        "toggleFailed": "Failed to update job state."
+      }
+    },
+    "cli": {
+      "tabTitle": "CLI & Config",
+      "title": "Hermes CLI & Config",
+      "description": "Inspect Hermes configuration and run allowlisted read-only CLI commands without leaving AionUi.",
+      "loadError": "Failed to load Hermes CLI/config overview",
+      "runError": "Failed to run Hermes CLI command",
+      "empty": "No Hermes CLI commands found",
+      "unsupportedTitle": "Hermes CLI/config API unavailable",
+      "unsupportedDescription": "Aioncore must provide GET and POST /api/agents/hermes/cli-config before this panel can inspect Hermes CLI state.",
+      "statusOutput": "Status",
+      "configOutput": "Configuration",
+      "commandsTitle": "Read-only CLI actions",
+      "commandsDescription": "These buttons run exact allowlisted commands and redact secrets before output reaches the browser.",
+      "timedOut": "Timed out",
+      "exitCode": "Exit {{code}}",
+      "summary": {
+        "cli": "CLI",
+        "home": "Hermes home",
+        "config": "Config file",
+        "env": "Secrets file"
+      }
     }
   }
 }

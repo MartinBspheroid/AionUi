@@ -100,6 +100,55 @@ describe('Hermes ACP extension bridge', () => {
     );
   });
 
+  it('creates Hermes cron jobs via POST to the documented endpoint', async () => {
+    await acpConversation.hermesExt.createCronJob.invoke({
+      schedule: '30m',
+      prompt: 'Build the digest',
+      skills: ['dogfood'],
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:13400/api/agents/hermes/cron/jobs',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ schedule: '30m', prompt: 'Build the digest', skills: ['dogfood'] }),
+      })
+    );
+  });
+
+  it('routes cron actions (run/pause/resume/delete/update) to id-scoped endpoints', async () => {
+    await acpConversation.hermesExt.runCronJob.invoke({ id: 'abc123' });
+    await acpConversation.hermesExt.pauseCronJob.invoke({ id: 'abc123' });
+    await acpConversation.hermesExt.resumeCronJob.invoke({ id: 'abc123' });
+    await acpConversation.hermesExt.deleteCronJob.invoke({ id: 'abc123' });
+    await acpConversation.hermesExt.updateCronJob.invoke({ id: 'abc123', patch: { name: 'renamed' } });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'http://127.0.0.1:13400/api/agents/hermes/cron/jobs/abc123/run',
+      expect.objectContaining({ method: 'POST' })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://127.0.0.1:13400/api/agents/hermes/cron/jobs/abc123/pause',
+      expect.objectContaining({ method: 'POST' })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://127.0.0.1:13400/api/agents/hermes/cron/jobs/abc123/resume',
+      expect.objectContaining({ method: 'POST' })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      'http://127.0.0.1:13400/api/agents/hermes/cron/jobs/abc123',
+      expect.objectContaining({ method: 'DELETE' })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
+      'http://127.0.0.1:13400/api/agents/hermes/cron/jobs/abc123',
+      expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ name: 'renamed' }) })
+    );
+  });
+
   it('encodes skill ids with embedded slashes when fetching a single skill', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,

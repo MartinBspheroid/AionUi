@@ -988,7 +988,52 @@
         "schedule": "Schedule",
         "nextRun": "Next run",
         "lastRun": "Last run",
-        "details": "Details"
+        "details": "Details",
+        "actions": "Actions"
+      },
+      "actions": {
+        "create": "New job",
+        "edit": "Edit",
+        "delete": "Delete",
+        "run": "Run now",
+        "pause": "Pause",
+        "resume": "Resume"
+      },
+      "confirmDelete": {
+        "title": "Delete scheduled job?",
+        "content": "Delete \"{{name}}\"? This cannot be undone."
+      },
+      "form": {
+        "createTitle": "Schedule a new job",
+        "editTitle": "Edit scheduled job",
+        "schedule": "Schedule",
+        "scheduleHint": "Cron expression or shortcut: 30m, every 2h, 0 9 * * *",
+        "scheduleRequired": "Schedule is required",
+        "name": "Name",
+        "namePlaceholder": "Daily digest",
+        "prompt": "Prompt",
+        "promptEdit": "Replace prompt",
+        "promptEditHint": "Leave empty to keep the existing prompt.",
+        "skills": "Skills",
+        "deliver": "Deliver to",
+        "repeat": "Repeat",
+        "script": "Script",
+        "workdir": "Workdir",
+        "noAgent": "Run script only (no agent)",
+        "profile": "Profile",
+        "noChanges": "No changes to save."
+      },
+      "toasts": {
+        "created": "Job created.",
+        "updated": "Job updated.",
+        "deleted": "Job removed.",
+        "paused": "Job paused.",
+        "resumed": "Job resumed.",
+        "queuedRun": "Run queued for next tick.",
+        "saveFailed": "Failed to save the job.",
+        "deleteFailed": "Failed to delete the job.",
+        "runFailed": "Failed to queue a run.",
+        "toggleFailed": "Failed to update job state."
       }
     },
     "cli": {
