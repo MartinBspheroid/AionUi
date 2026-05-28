@@ -104,6 +104,46 @@ function resolveDefaultMode(backend: string | undefined, agents: AgentMetadata[]
   return 'default';
 }
 
+export function getHandshakeModelInfo(
+  backend: string | undefined,
+  agents: AgentMetadata[] | undefined
+): AcpModelInfo | undefined {
+  if (!backend) return undefined;
+  const matched = agents?.find((a) => (a.backend ?? a.agent_type) === backend);
+  const handshakeModels = matched?.handshake?.available_models as AcpModelInfo | undefined;
+  if (!handshakeModels || !Array.isArray(handshakeModels.available_models)) {
+    return undefined;
+  }
+  return handshakeModels;
+}
+
+export function resolveSelectedAcpModel(
+  backend: string | undefined,
+  acpConfig: Record<string, unknown> | undefined,
+  agents: AgentMetadata[] | undefined
+): string | null {
+  if (!backend) return null;
+
+  const preferred = (acpConfig?.[backend] as Record<string, unknown> | undefined)?.preferredModelId as string | undefined;
+  const handshakeModels = getHandshakeModelInfo(backend, agents);
+
+  if (preferred) {
+    const availableModels = handshakeModels?.available_models;
+    // When the agent advertises a concrete model catalog, do not keep sending
+    // a stale user preference from an older provider/default-model setup. This
+    // matters for Hermes because switching provider/model in Hermes updates the
+    // handshake immediately, while AionUi may still have an old
+    // `acp.config.<backend>.preferredModelId` saved locally.
+    if (availableModels?.length) {
+      const preferredStillAvailable = availableModels.some((model) => model.id === preferred);
+      return preferredStillAvailable ? preferred : (handshakeModels.current_model_id ?? null);
+    }
+    return preferred;
+  }
+
+  return handshakeModels?.current_model_id ?? null;
+}
+
 type UseGuidAgentSelectionOptions = {
   modelList: IProvider[];
   isGoogleAuth: boolean;
@@ -408,17 +448,9 @@ export const useGuidAgentSelection = ({
     // For preset agents, resolve to the actual backend type for config lookup
     const backend = is_presetAgent ? currentEffectiveAgentInfo.agent_type : selectedAgent;
 
-    const config = configService.get('acp.config');
-    const preferred = (config?.[backend as string] as Record<string, unknown>)?.preferredModelId as string | undefined;
-    if (preferred) {
-      _setSelectedAcpModel(preferred);
-      return;
-    }
-
+    const config = configService.get('acp.config') as Record<string, unknown> | undefined;
     const metadataAgents = availableAgentsData as unknown as AgentMetadata[] | undefined;
-    const matched = metadataAgents?.find((a) => (a.backend ?? a.agent_type) === backend);
-    const handshakeModels = matched?.handshake?.available_models as AcpModelInfo | undefined;
-    _setSelectedAcpModel(handshakeModels?.current_model_id ?? null);
+    _setSelectedAcpModel(resolveSelectedAcpModel(backend as string | undefined, config, metadataAgents));
   }, [selectedAgentKey, availableAgentsData, is_presetAgent, currentEffectiveAgentInfo.agent_type]);
 
   // Read preferred mode or fallback to legacy yoloMode config
@@ -492,9 +524,7 @@ export const useGuidAgentSelection = ({
     // The backend persists the last-seen `ModelInfoPayload` (snake_case) on
     // the agent_metadata row, so this is populated across restarts without
     // requiring a fresh session.
-    const metadataAgents = availableAgentsData as unknown as AgentMetadata[] | undefined;
-    const matched = metadataAgents?.find((a) => (a.backend ?? a.agent_type) === backend);
-    const handshakeModels = matched?.handshake?.available_models as AcpModelInfo | undefined;
+    const handshakeModels = getHandshakeModelInfo(backend, availableAgentsData as unknown as AgentMetadata[] | undefined);
     if (
       handshakeModels &&
       Array.isArray(handshakeModels.available_models) &&
