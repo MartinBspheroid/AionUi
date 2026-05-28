@@ -96,16 +96,15 @@ describe('Hermes Memory settings panel', () => {
     expect(screen.getByDisplayValue('user profile')).toBeInTheDocument();
   });
 
-  it('saves dirty memory content', async () => {
+  it('saves only the dirty section via a partial PUT', async () => {
     render(<MemoryPanel />);
 
     fireEvent.change(await screen.findByDisplayValue('project memory'), { target: { value: 'updated memory' } });
-    fireEvent.click(screen.getByRole('button', { name: 'common.save' }));
+    fireEvent.click(screen.getByRole('button', { name: 'settings.hermes.memory.saveAgent' }));
 
     await waitFor(() => {
       expect(ipcBridge.acpConversation.hermesExt.setMemory.invoke).toHaveBeenCalledWith({
         memory: 'updated memory',
-        user: 'user profile',
       });
     });
     expect(Message.success).toHaveBeenCalledWith('settings.hermes.memory.saveSuccess');
@@ -117,7 +116,7 @@ describe('Hermes Memory settings panel', () => {
     render(<MemoryPanel />);
 
     fireEvent.change(await screen.findByDisplayValue('user profile'), { target: { value: 'updated user' } });
-    fireEvent.click(screen.getByRole('button', { name: 'common.save' }));
+    fireEvent.click(screen.getByRole('button', { name: 'settings.hermes.memory.saveUser' }));
 
     await waitFor(() => {
       expect(Message.error).toHaveBeenCalledWith('settings.hermes.memory.saveError');

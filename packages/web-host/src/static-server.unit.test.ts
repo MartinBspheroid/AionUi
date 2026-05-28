@@ -539,22 +539,32 @@ else console.log('ran ' + args.join(' '));
     // We don't run a real ws protocol — just verify the upgrade response makes
     // it back through the TCP-splice proxy. This is the exact regression path
     // that bun 1.3's http-compat upgrade handler broke.
+    //
+    // The backend uses a raw net.Server (instead of http.createServer().on('upgrade'))
+    // because Bun 1.3's http-compat upgrade socket silently drops writes that
+    // happen synchronously inside the handler. Speaking HTTP at the byte level
+    // sidesteps that bug so the test is testing the *static-server* splice path,
+    // not the test fixture's interaction with Bun.
     const { createHash } = await import('node:crypto');
     const net = await import('node:net');
-    const httpMod = await import('node:http');
-    const backendServer = httpMod.createServer();
-    backendServer.on('upgrade', (req, socket) => {
-      const wsKey = (req.headers['sec-websocket-key'] as string) || '';
-      const accept = createHash('sha1')
-        .update(wsKey + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')
-        .digest('base64');
-      socket.write('HTTP/1.1 101 Switching Protocols\r\n');
-      socket.write('Upgrade: websocket\r\n');
-      socket.write('Connection: Upgrade\r\n');
-      socket.write(`Sec-WebSocket-Accept: ${accept}\r\n\r\n`);
-      // Send a single 0-length WS text frame as a liveness marker then close.
-      socket.write(Buffer.from([0x81, 0x00]));
-      socket.end();
+    const backendServer = net.createServer((sock) => {
+      let received = '';
+      sock.on('data', (chunk) => {
+        received += chunk.toString('ascii');
+        const headEnd = received.indexOf('\r\n\r\n');
+        if (headEnd < 0) return;
+        const headers = received.slice(0, headEnd).split('\r\n');
+        const keyHeader = headers.find((h) => h.toLowerCase().startsWith('sec-websocket-key:'));
+        const wsKey = keyHeader ? keyHeader.slice(keyHeader.indexOf(':') + 1).trim() : '';
+        const accept = createHash('sha1')
+          .update(wsKey + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')
+          .digest('base64');
+        sock.write(
+          `HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`
+        );
+        sock.write(Buffer.from([0x81, 0x00]));
+        sock.end();
+      });
     });
     await new Promise<void>((r) => backendServer.listen(0, '127.0.0.1', () => r()));
     stopBackend = () => new Promise<void>((r) => backendServer.close(() => r()));

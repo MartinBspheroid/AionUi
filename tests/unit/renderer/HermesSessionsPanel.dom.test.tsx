@@ -35,6 +35,10 @@ vi.mock('@arco-design/web-react', () => ({
     </button>
   ),
   Empty: ({ description }: { description?: React.ReactNode }) => <div>{description}</div>,
+  // Required because HermesSettings/components.tsx destructures `Input.TextArea`
+  // at module-import time. Even though SessionsPanel itself doesn't use it,
+  // the shared `components.tsx` module loads alongside the panel.
+  Input: { TextArea: () => <textarea /> },
   Spin: () => <div data-testid='spin' />,
   Table: ({
     columns,
@@ -98,9 +102,10 @@ describe('Hermes Sessions settings panel', () => {
   it('renders loaded session summaries', async () => {
     render(<SessionsPanel />);
 
-    expect(await screen.findByText('Build parity')).toBeInTheDocument();
+    // Title also appears in the StatCard hint, so we expect at least one match.
+    expect(await screen.findAllByText('Build parity')).not.toHaveLength(0);
     expect(screen.getByText('session-1')).toBeInTheDocument();
-    expect(screen.getByText('gpt-5')).toBeInTheDocument();
+    expect(screen.getAllByText('gpt-5').length).toBeGreaterThan(0);
     expect(screen.getByText('gateway')).toBeInTheDocument();
   });
 

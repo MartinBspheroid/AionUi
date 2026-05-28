@@ -3,6 +3,15 @@
  * Configuration for React component and hook tests using jsdom
  */
 
+// React's CJS entry checks NODE_ENV at require-time and only exports `act`
+// from the development build. When the shell exports NODE_ENV=production
+// (some CI runners and Bun-based harnesses do), @testing-library/react fails
+// with "React.act is not a function". Force a test-appropriate value here,
+// before React is first imported by anything below.
+if (process.env.NODE_ENV === 'production' || !process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'test';
+}
+
 import '@testing-library/jest-dom/vitest';
 
 // Make this a module

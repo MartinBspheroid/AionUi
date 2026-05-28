@@ -3,6 +3,13 @@
  * Global configuration for extension system tests
  */
 
+// Some harnesses and Bun-based runners leak NODE_ENV=production into the
+// shell. Pin it to 'test' here so React's CJS entry loads the development
+// build (the production build omits `act`, breaking @testing-library/react).
+if (process.env.NODE_ENV === 'production' || !process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'test';
+}
+
 // Register NodePlatformServices so modules that call getPlatformServices() work in tests.
 import { registerPlatformServices } from '@/common/platform';
 import { NodePlatformServices } from '@/common/platform/NodePlatformServices';
