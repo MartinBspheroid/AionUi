@@ -163,6 +163,73 @@ describe('static-server', () => {
     expect(r.status).toBe(502);
   });
 
+
+  it('/api/agents/hermes/memory requires authenticated backend status', async () => {
+    const hermesHome = await fs.mkdtemp(path.join(os.tmpdir(), 'hermes-home-'));
+    const oldHome = process.env.HERMES_HOME;
+    process.env.HERMES_HOME = hermesHome;
+    try {
+      const backend = await startMockBackend((req, res) => {
+        if (req.url === '/api/auth/status') {
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ success: true, is_authenticated: false }));
+          return;
+        }
+        res.writeHead(404).end();
+      });
+      stopBackend = backend.close;
+      handle = await startStaticServer({ staticDir, backendPort: backend.port, port: 0 });
+
+      const r = await fetch(`${handle.localUrl}/api/agents/hermes/memory`);
+      expect(r.status).toBe(401);
+      const json = (await r.json()) as { code: string };
+      expect(json.code).toBe('UNAUTHENTICATED');
+    } finally {
+      if (oldHome === undefined) delete process.env.HERMES_HOME;
+      else process.env.HERMES_HOME = oldHome;
+      await fs.rm(hermesHome, { recursive: true, force: true });
+    }
+  });
+
+  it('/api/agents/hermes/memory reads and writes Hermes memory files when authenticated', async () => {
+    const hermesHome = await fs.mkdtemp(path.join(os.tmpdir(), 'hermes-home-'));
+    const oldHome = process.env.HERMES_HOME;
+    process.env.HERMES_HOME = hermesHome;
+    await fs.writeFile(path.join(hermesHome, 'MEMORY.md'), 'old memory');
+    await fs.writeFile(path.join(hermesHome, 'USER.md'), 'old user');
+    try {
+      const backend = await startMockBackend((req, res) => {
+        if (req.url === '/api/auth/status') {
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ success: true, is_authenticated: true }));
+          return;
+        }
+        res.writeHead(404).end();
+      });
+      stopBackend = backend.close;
+      handle = await startStaticServer({ staticDir, backendPort: backend.port, port: 0 });
+
+      const readBefore = await fetch(`${handle.localUrl}/api/agents/hermes/memory`, {
+        headers: { cookie: 'aionui-session=test' },
+      });
+      expect(readBefore.status).toBe(200);
+      await expect(readBefore.json()).resolves.toMatchObject({ data: { memory: 'old memory', user: 'old user' } });
+
+      const write = await fetch(`${handle.localUrl}/api/agents/hermes/memory`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json', cookie: 'aionui-session=test' },
+        body: JSON.stringify({ memory: 'new memory', user: 'new user' }),
+      });
+      expect(write.status).toBe(200);
+      await expect(fs.readFile(path.join(hermesHome, 'MEMORY.md'), 'utf8')).resolves.toBe('new memory');
+      await expect(fs.readFile(path.join(hermesHome, 'USER.md'), 'utf8')).resolves.toBe('new user');
+    } finally {
+      if (oldHome === undefined) delete process.env.HERMES_HOME;
+      else process.env.HERMES_HOME = oldHome;
+      await fs.rm(hermesHome, { recursive: true, force: true });
+    }
+  });
+
   it('/ws WebSocket upgrade is spliced to backend and 101 is relayed', async () => {
     // Mock backend that accepts any WebSocket upgrade and replies with 101.
     // We don't run a real ws protocol — just verify the upgrade response makes

@@ -6,12 +6,16 @@
  * /login and /logout are aionui-auth's top-level paths, the rest live under
  * /api/auth/*.
  *
- * Design: Node native http + serve-handler. No Express. No business routes.
+ * Design: Node native http + serve-handler. No Express. Most business routes
+ * remain in aioncore; host-level routes are limited to WebUI-only integration
+ * shims that need local filesystem access before the generic /api/* proxy.
  */
 
+import { promises as fs } from 'node:fs';
 import http, { type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import { networkInterfaces } from 'node:os';
+import { homedir, networkInterfaces } from 'node:os';
 import net, { type Socket } from 'node:net';
+import path from 'node:path';
 import serveHandler from 'serve-handler';
 
 export type StaticServerOptions = {
@@ -63,6 +67,99 @@ function forwardToBackend(req: IncomingMessage, res: ServerResponse, backendPort
     }
   });
   req.pipe(proxy);
+}
+
+function sendJson(res: ServerResponse, status: number, body: unknown): void {
+  res.writeHead(status, { 'content-type': 'application/json' });
+  res.end(JSON.stringify(body));
+}
+
+async function readJsonBody(req: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  const raw = Buffer.concat(chunks).toString('utf8');
+  if (!raw.trim()) return undefined;
+  return JSON.parse(raw) as unknown;
+}
+
+async function isAuthenticated(req: IncomingMessage, backendPort: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const authReq = http.request(
+      {
+        hostname: '127.0.0.1',
+        port: backendPort,
+        path: '/api/auth/status',
+        method: 'GET',
+        headers: {
+          cookie: req.headers.cookie ?? '',
+          accept: 'application/json',
+        },
+      },
+      (authRes) => {
+        const chunks: Buffer[] = [];
+        authRes.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+        authRes.on('end', () => {
+          try {
+            const json = JSON.parse(Buffer.concat(chunks).toString('utf8')) as { is_authenticated?: unknown };
+            resolve(authRes.statusCode === 200 && json.is_authenticated === true);
+          } catch {
+            resolve(false);
+          }
+        });
+      }
+    );
+    authReq.on('error', () => resolve(false));
+    authReq.end();
+  });
+}
+
+async function readTextFileOrEmpty(filePath: string): Promise<string> {
+  try {
+    return await fs.readFile(filePath, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return '';
+    throw error;
+  }
+}
+
+async function handleHermesMemoryRoute(
+  req: IncomingMessage,
+  res: ServerResponse,
+  backendPort: number
+): Promise<boolean> {
+  if (req.url !== '/api/agents/hermes/memory') return false;
+
+  if (!(await isAuthenticated(req, backendPort))) {
+    sendJson(res, 401, { success: false, error: 'Authentication required', code: 'UNAUTHENTICATED' });
+    return true;
+  }
+
+  const hermesHome = process.env.HERMES_HOME || path.join(homedir(), '.hermes');
+  const memoryPath = path.join(hermesHome, 'MEMORY.md');
+  const userPath = path.join(hermesHome, 'USER.md');
+
+  if (req.method === 'GET') {
+    const [memory, user] = await Promise.all([readTextFileOrEmpty(memoryPath), readTextFileOrEmpty(userPath)]);
+    sendJson(res, 200, { success: true, data: { memory, user } });
+    return true;
+  }
+
+  if (req.method === 'PUT') {
+    const body = (await readJsonBody(req)) as { memory?: unknown; user?: unknown } | undefined;
+    if (!body || typeof body.memory !== 'string' || typeof body.user !== 'string') {
+      sendJson(res, 400, { success: false, error: 'Expected { memory: string, user: string }', code: 'BAD_REQUEST' });
+      return true;
+    }
+    await fs.mkdir(hermesHome, { recursive: true });
+    await Promise.all([fs.writeFile(memoryPath, body.memory), fs.writeFile(userPath, body.user)]);
+    sendJson(res, 200, { success: true, data: undefined });
+    return true;
+  }
+
+  sendJson(res, 405, { success: false, error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' });
+  return true;
 }
 
 // Max bytes we peek before forcing a routing decision. An HTTP request-line
@@ -137,6 +234,10 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
         return;
       }
 
+      if (await handleHermesMemoryRoute(req, res, opts.backendPort)) {
+        return;
+      }
+
       // /api/* — reverse proxy to backend (includes /api/auth/*).
       // /login and /logout are aionui-auth's top-level auth endpoints: proxy them too
       // so WebUI browser clients reach the backend without a path-rewrite.
@@ -150,7 +251,7 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
         public: opts.staticDir,
         rewrites: [{ source: '**', destination: '/index.html' }],
       });
-    } catch (err) {
+    } catch {
       if (!res.headersSent) {
         res.writeHead(500, { 'content-type': 'application/json' });
         res.end(JSON.stringify({ error: 'INTERNAL_ERROR' }));

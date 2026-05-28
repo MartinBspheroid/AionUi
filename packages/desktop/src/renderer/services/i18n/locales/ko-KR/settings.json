@@ -910,5 +910,22 @@
     "pendingTimeout": "승인 요청이 만료되었습니다 (5분). 다시 시도해주세요.",
     "pendingCancel": "취소",
     "pendingTimeRemaining": "남은 시간: {{time}}"
+  },
+  "hermes": {
+    "title": "Hermes",
+    "memory": {
+      "tabTitle": "Memory",
+      "title": "Hermes Memory",
+      "description": "Edit the MEMORY.md and USER.md files from the active Hermes profile.",
+      "memoryLabel": "MEMORY.md",
+      "userLabel": "USER.md",
+      "memoryPlaceholder": "Add long-term project and assistant memory...",
+      "userPlaceholder": "Add user preferences and profile details...",
+      "loadError": "Failed to load Hermes memory",
+      "saveError": "Failed to save Hermes memory",
+      "saveSuccess": "Hermes memory saved",
+      "unsupportedTitle": "Hermes memory API unavailable",
+      "unsupportedDescription": "Aioncore must provide GET and PUT /api/agents/hermes/memory before this editor can load MEMORY.md and USER.md."
+    }
   }
 }

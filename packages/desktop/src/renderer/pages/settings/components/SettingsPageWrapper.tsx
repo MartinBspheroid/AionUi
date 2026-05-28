@@ -1,5 +1,6 @@
 import classNames from 'classnames';
 import React from 'react';
+import { useAgents } from '@/renderer/hooks/agent/useAgents';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { SettingsViewModeProvider } from '@/renderer/components/settings/SettingsModal/settingsViewContext';
 import { isElectronDesktop, resolveExtensionAssetUrl } from '@/renderer/utils/platform';
@@ -54,6 +55,12 @@ export function getBuiltinSettingsNavItems(isDesktop: boolean, t: TranslateFn): 
       icon: <Lightning theme='outline' size='16' />,
       path: 'capabilities',
     },
+    hermes: {
+      id: 'hermes',
+      label: t('settings.hermes.title'),
+      icon: <Robot theme='outline' size='16' />,
+      path: 'hermes',
+    },
     display: {
       id: 'display',
       label: t('settings.display'),
@@ -83,11 +90,18 @@ const SettingsPageWrapper: React.FC<SettingsPageWrapperProps> = ({ children, cla
   const isDesktop = isElectronDesktop();
 
   const extensionTabs = useExtensionSettingsTabs();
+  const { agents } = useAgents();
+  const hasHermesAgent = agents.some(
+    (agent) =>
+      agent.enabled &&
+      agent.available &&
+      (agent.id === 'hermes' || agent.backend === 'hermes' || agent.name.toLowerCase() === 'hermes')
+  );
 
   const { resolveExtTabName } = useExtI18n();
 
   const menuItems = React.useMemo(() => {
-    const builtins = getBuiltinSettingsNavItems(isDesktop, t);
+    const builtins = getBuiltinSettingsNavItems(isDesktop, t).filter((item) => item.id !== 'hermes' || hasHermesAgent);
 
     // Insert extension tabs before system (unanchored default) or at anchor position
     const result = [...builtins];
@@ -144,7 +158,7 @@ const SettingsPageWrapper: React.FC<SettingsPageWrapperProps> = ({ children, cla
     }
 
     return result;
-  }, [isDesktop, t, extensionTabs, resolveExtTabName]);
+  }, [isDesktop, t, hasHermesAgent, extensionTabs, resolveExtTabName]);
 
   const containerClass = classNames(
     'settings-page-wrapper w-full min-h-full box-border overflow-y-auto',

@@ -1,4 +1,5 @@
 import FlexFullContainer from '@/renderer/components/layout/FlexFullContainer';
+import { useAgents } from '@/renderer/hooks/agent/useAgents';
 import { isElectronDesktop, resolveExtensionAssetUrl } from '@/renderer/utils/platform';
 import { type IExtensionSettingsTab } from '@/common/adapter/ipcBridge';
 import { useExtI18n } from '@/renderer/hooks/system/useExtI18n';
@@ -29,6 +30,7 @@ export const BUILTIN_TAB_IDS = [
   'model',
   'assistants',
   'capabilities',
+  'hermes',
   'display',
   'webui',
   'pet',
@@ -77,6 +79,13 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
 
   const extensionTabs = useExtensionSettingsTabs();
   const { resolveExtTabName } = useExtI18n();
+  const { agents } = useAgents();
+  const hasHermesAgent = agents.some(
+    (agent) =>
+      agent.enabled &&
+      agent.available &&
+      (agent.id === 'hermes' || agent.backend === 'hermes' || agent.name.toLowerCase() === 'hermes')
+  );
 
   const { menus, groupHeaderAt } = useMemo(() => {
     // Build builtin items
@@ -100,6 +109,12 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
         icon: <Lightning />,
         path: 'capabilities',
       },
+      hermes: {
+        id: 'hermes',
+        label: t('settings.hermes.title'),
+        icon: <Robot />,
+        path: 'hermes',
+      },
       display: { id: 'display', label: t('settings.display'), icon: <Computer />, path: 'display' },
       webui: {
         id: 'webui',
@@ -113,7 +128,11 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
     };
 
     // Start with ordered builtin IDs, hiding desktop-only tabs in browser mode
-    const result: SiderItem[] = BUILTIN_TAB_IDS.filter((id) => isDesktop || id !== 'pet').map((id) => builtinMap[id]);
+    const result: SiderItem[] = BUILTIN_TAB_IDS.filter((id) => {
+      if (!isDesktop && id === 'pet') return false;
+      if (id === 'hermes') return hasHermesAgent;
+      return true;
+    }).map((id) => builtinMap[id]);
 
     // Extension tabs with position anchoring
     const beforeMap = new Map<string, IExtensionSettingsTab[]>();
@@ -187,7 +206,7 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
     }
 
     return { menus: result, groupHeaderAt: headerAt };
-  }, [t, isDesktop, extensionTabs, resolveExtTabName]);
+  }, [t, isDesktop, hasHermesAgent, extensionTabs, resolveExtTabName]);
 
   const siderTooltipProps = getSiderTooltipProps(tooltipEnabled);
   return (

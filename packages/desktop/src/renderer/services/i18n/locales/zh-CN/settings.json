@@ -909,5 +909,22 @@
     "pendingTimeout": "审批请求已过期（5 分钟）。请重试。",
     "pendingCancel": "取消",
     "pendingTimeRemaining": "剩余时间：{{time}}"
+  },
+  "hermes": {
+    "title": "Hermes",
+    "memory": {
+      "tabTitle": "Memory",
+      "title": "Hermes Memory",
+      "description": "Edit the MEMORY.md and USER.md files from the active Hermes profile.",
+      "memoryLabel": "MEMORY.md",
+      "userLabel": "USER.md",
+      "memoryPlaceholder": "Add long-term project and assistant memory...",
+      "userPlaceholder": "Add user preferences and profile details...",
+      "loadError": "Failed to load Hermes memory",
+      "saveError": "Failed to save Hermes memory",
+      "saveSuccess": "Hermes memory saved",
+      "unsupportedTitle": "Hermes memory API unavailable",
+      "unsupportedDescription": "Aioncore must provide GET and PUT /api/agents/hermes/memory before this editor can load MEMORY.md and USER.md."
+    }
   }
 }

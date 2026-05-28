@@ -761,6 +761,36 @@ export const acpConversation = {
     (p) => `/api/conversations/${p.conversation_id}/model`,
     (p) => ({ model_id: p.model_id })
   ),
+  hermesExt: {
+    getMemory: httpGet<{ memory: string; user: string }, void>('/api/agents/hermes/memory', { silentStatuses: [404] }),
+    setMemory: httpPut<void, { memory: string; user: string }>('/api/agents/hermes/memory'),
+    getCapabilities: httpGet<
+      {
+        compress?: boolean;
+        retry?: boolean;
+        undo?: boolean;
+        forkSession?: boolean;
+        rollback?: boolean;
+      },
+      { conversation_id: string }
+    >((p) => `/api/conversations/${p.conversation_id}/hermes/capabilities`, { silentStatuses: [404] }),
+    compress: httpPost<void, { conversation_id: string; focus?: string }>(
+      (p) => `/api/conversations/${p.conversation_id}/hermes/compress`,
+      (p) => ({ focus: p.focus })
+    ),
+    retry: httpPost<void, { conversation_id: string }>((p) => `/api/conversations/${p.conversation_id}/hermes/retry`),
+    undo: httpPost<void, { conversation_id: string }>((p) => `/api/conversations/${p.conversation_id}/hermes/undo`),
+    forkSession: httpPost<{ session_id: string }, { conversation_id: string }>(
+      (p) => `/api/conversations/${p.conversation_id}/hermes/fork`
+    ),
+    listCheckpoints: httpGet<Array<{ id: string; timestamp?: string; label?: string }>, { conversation_id: string }>(
+      (p) => `/api/conversations/${p.conversation_id}/hermes/checkpoints`,
+      { silentStatuses: [404] }
+    ),
+    restoreCheckpoint: httpPost<void, { conversation_id: string; checkpoint_id: string }>(
+      (p) => `/api/conversations/${p.conversation_id}/hermes/checkpoints/${encodeURIComponent(p.checkpoint_id)}/restore`
+    ),
+  },
 };
 
 // ---------------------------------------------------------------------------

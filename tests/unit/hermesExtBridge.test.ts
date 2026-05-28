@@ -1,0 +1,95 @@
+/**
+ * @license
+ * Copyright 2025 AionUi (aionui.com)
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { acpConversation } from '@/common/adapter/ipcBridge';
+import type { BackendHttpError } from '@/common/adapter/httpBridge';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const fetchMock = vi.fn();
+
+describe('Hermes ACP extension bridge', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      json: async () => ({ data: undefined }),
+    });
+  });
+
+  it('loads Hermes memory from the documented backend route', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      json: async () => ({ data: { memory: 'memory', user: 'user' } }),
+    });
+
+    await expect(acpConversation.hermesExt.getMemory.invoke()).resolves.toEqual({ memory: 'memory', user: 'user' });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:13400/api/agents/hermes/memory',
+      expect.objectContaining({ method: 'GET' })
+    );
+  });
+
+  it('maps header action bridge calls to Hermes conversation endpoints', async () => {
+    await acpConversation.hermesExt.compress.invoke({ conversation_id: 'conv-1', focus: 'tools' });
+    await acpConversation.hermesExt.retry.invoke({ conversation_id: 'conv-1' });
+    await acpConversation.hermesExt.undo.invoke({ conversation_id: 'conv-1' });
+    await acpConversation.hermesExt.forkSession.invoke({ conversation_id: 'conv-1' });
+    await acpConversation.hermesExt.listCheckpoints.invoke({ conversation_id: 'conv-1' });
+    await acpConversation.hermesExt.restoreCheckpoint.invoke({ conversation_id: 'conv-1', checkpoint_id: 'ckpt 1' });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'http://127.0.0.1:13400/api/conversations/conv-1/hermes/compress',
+      expect.objectContaining({ body: JSON.stringify({ focus: 'tools' }), method: 'POST' })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://127.0.0.1:13400/api/conversations/conv-1/hermes/retry',
+      expect.objectContaining({ method: 'POST' })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://127.0.0.1:13400/api/conversations/conv-1/hermes/undo',
+      expect.objectContaining({ method: 'POST' })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      'http://127.0.0.1:13400/api/conversations/conv-1/hermes/fork',
+      expect.objectContaining({ method: 'POST' })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
+      'http://127.0.0.1:13400/api/conversations/conv-1/hermes/checkpoints',
+      expect.objectContaining({ method: 'GET' })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      6,
+      'http://127.0.0.1:13400/api/conversations/conv-1/hermes/checkpoints/ckpt%201/restore',
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
+
+  it('surfaces 404 as an unsupported backend endpoint', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      json: async () => ({ error: 'not found', code: 'NOT_FOUND' }),
+    });
+
+    await expect(acpConversation.hermesExt.getCapabilities.invoke({ conversation_id: 'conv-1' })).rejects.toMatchObject(
+      {
+        status: 404,
+      } satisfies Partial<BackendHttpError>
+    );
+  });
+});
