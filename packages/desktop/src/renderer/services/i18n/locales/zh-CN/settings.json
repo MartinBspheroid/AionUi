@@ -925,6 +925,21 @@
       "saveSuccess": "Hermes memory saved",
       "unsupportedTitle": "Hermes memory API unavailable",
       "unsupportedDescription": "Aioncore must provide GET and PUT /api/agents/hermes/memory before this editor can load MEMORY.md and USER.md."
+    },
+    "sessions": {
+      "tabTitle": "Sessions",
+      "title": "Recent Hermes Sessions",
+      "description": "Browse read-only sessions found in the active Hermes profile.",
+      "loadError": "Failed to load Hermes sessions",
+      "empty": "No Hermes sessions found",
+      "unsupportedTitle": "Hermes sessions API unavailable",
+      "unsupportedDescription": "Aioncore must provide GET /api/agents/hermes/sessions before this browser can list sessions.",
+      "columns": {
+        "title": "Title",
+        "model": "Model",
+        "platform": "Platform",
+        "lastUpdated": "Last updated"
+      }
     }
   }
 }

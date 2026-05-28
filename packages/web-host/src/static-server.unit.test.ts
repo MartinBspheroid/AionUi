@@ -163,7 +163,6 @@ describe('static-server', () => {
     expect(r.status).toBe(502);
   });
 
-
   it('/api/agents/hermes/memory requires authenticated backend status', async () => {
     const hermesHome = await fs.mkdtemp(path.join(os.tmpdir(), 'hermes-home-'));
     const oldHome = process.env.HERMES_HOME;
@@ -184,6 +183,111 @@ describe('static-server', () => {
       expect(r.status).toBe(401);
       const json = (await r.json()) as { code: string };
       expect(json.code).toBe('UNAUTHENTICATED');
+    } finally {
+      if (oldHome === undefined) delete process.env.HERMES_HOME;
+      else process.env.HERMES_HOME = oldHome;
+      await fs.rm(hermesHome, { recursive: true, force: true });
+    }
+  });
+
+  it('/api/agents/hermes/sessions requires authenticated backend status', async () => {
+    const hermesHome = await fs.mkdtemp(path.join(os.tmpdir(), 'hermes-home-'));
+    const oldHome = process.env.HERMES_HOME;
+    process.env.HERMES_HOME = hermesHome;
+    try {
+      const backend = await startMockBackend((req, res) => {
+        if (req.url === '/api/auth/status') {
+          expect(req.headers.cookie).toBe('aionui-session=test');
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ success: true, is_authenticated: false }));
+          return;
+        }
+        res.writeHead(404).end();
+      });
+      stopBackend = backend.close;
+      handle = await startStaticServer({ staticDir, backendPort: backend.port, port: 0 });
+
+      const r = await fetch(`${handle.localUrl}/api/agents/hermes/sessions`, {
+        headers: { cookie: 'aionui-session=test' },
+      });
+      expect(r.status).toBe(401);
+      const json = (await r.json()) as { code: string };
+      expect(json.code).toBe('UNAUTHENTICATED');
+    } finally {
+      if (oldHome === undefined) delete process.env.HERMES_HOME;
+      else process.env.HERMES_HOME = oldHome;
+      await fs.rm(hermesHome, { recursive: true, force: true });
+    }
+  });
+
+  it('/api/agents/hermes/sessions lists authenticated Hermes session summaries defensively', async () => {
+    const hermesHome = await fs.mkdtemp(path.join(os.tmpdir(), 'hermes-home-'));
+    const oldHome = process.env.HERMES_HOME;
+    process.env.HERMES_HOME = hermesHome;
+    const sessionsDir = path.join(hermesHome, 'sessions');
+    await fs.mkdir(sessionsDir);
+    await fs.writeFile(
+      path.join(sessionsDir, 'older.json'),
+      JSON.stringify({
+        session_id: 'session-older',
+        title: 'Older title',
+        model: 'claude-3-5',
+        platform: 'hermes',
+        session_start: '2026-05-01T10:00:00.000Z',
+        last_updated: '2026-05-01T11:00:00.000Z',
+        messages: [{ role: 'system', content: 'hidden' }],
+      })
+    );
+    await fs.writeFile(
+      path.join(sessionsDir, 'newer.json'),
+      JSON.stringify({
+        model_id: 'gpt-5',
+        provider: 'gateway',
+        messages: [{ role: 'user', content: 'Build the next parity slice with care' }],
+        last_updated: '2026-05-03T11:00:00.000Z',
+      })
+    );
+    await fs.writeFile(path.join(sessionsDir, 'corrupt.json'), '{not json');
+    try {
+      const backend = await startMockBackend((req, res) => {
+        if (req.url === '/api/auth/status') {
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ success: true, is_authenticated: true }));
+          return;
+        }
+        res.writeHead(404).end();
+      });
+      stopBackend = backend.close;
+      handle = await startStaticServer({ staticDir, backendPort: backend.port, port: 0 });
+
+      const r = await fetch(`${handle.localUrl}/api/agents/hermes/sessions?limit=100`, {
+        headers: { cookie: 'aionui-session=test' },
+      });
+      expect(r.status).toBe(200);
+      const json = (await r.json()) as {
+        data: {
+          sessions: Array<{
+            id: string;
+            title?: string;
+            model?: string;
+            platform?: string;
+            last_updated?: string;
+            messages?: unknown;
+            system_prompt?: unknown;
+          }>;
+        };
+      };
+      expect(json.data.sessions).toHaveLength(2);
+      expect(json.data.sessions[0]).toMatchObject({
+        id: 'newer',
+        title: 'Build the next parity slice with care',
+        model: 'gpt-5',
+        platform: 'gateway',
+        last_updated: '2026-05-03T11:00:00.000Z',
+      });
+      expect(json.data.sessions[1]).toMatchObject({ id: 'session-older', title: 'Older title' });
+      expect(json.data.sessions[0].messages).toBeUndefined();
+      expect(json.data.sessions[0].system_prompt).toBeUndefined();
     } finally {
       if (oldHome === undefined) delete process.env.HERMES_HOME;
       else process.env.HERMES_HOME = oldHome;

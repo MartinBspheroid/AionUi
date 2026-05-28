@@ -9,15 +9,19 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import SettingsPageWrapper from '../components/SettingsPageWrapper';
 import MemoryPanel from './MemoryPanel';
+import SessionsPanel from './SessionsPanel';
 
 const HermesSettings: React.FC = () => {
   const { t } = useTranslation();
 
   return (
     <SettingsPageWrapper contentClassName='max-w-1200px'>
-      <Tabs type='line' activeTab='memory' className='flex flex-col flex-1 min-h-0 [&>.arco-tabs-content]:pt-0'>
+      <Tabs type='line' defaultActiveTab='memory' className='flex flex-col flex-1 min-h-0 [&>.arco-tabs-content]:pt-0'>
         <Tabs.TabPane key='memory' title={t('settings.hermes.memory.tabTitle')}>
           <MemoryPanel />
+        </Tabs.TabPane>
+        <Tabs.TabPane key='sessions' title={t('settings.hermes.sessions.tabTitle')}>
+          <SessionsPanel />
         </Tabs.TabPane>
       </Tabs>
     </SettingsPageWrapper>

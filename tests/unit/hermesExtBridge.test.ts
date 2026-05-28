@@ -38,6 +38,24 @@ describe('Hermes ACP extension bridge', () => {
     );
   });
 
+  it('lists Hermes sessions from the documented backend route', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      json: async () => ({ data: { sessions: [{ id: 'session-1', title: 'Build parity' }] } }),
+    });
+
+    await expect(acpConversation.hermesExt.listSessions.invoke()).resolves.toEqual({
+      sessions: [{ id: 'session-1', title: 'Build parity' }],
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:13400/api/agents/hermes/sessions?limit=20',
+      expect.objectContaining({ method: 'GET' })
+    );
+  });
+
   it('maps header action bridge calls to Hermes conversation endpoints', async () => {
     await acpConversation.hermesExt.compress.invoke({ conversation_id: 'conv-1', focus: 'tools' });
     await acpConversation.hermesExt.retry.invoke({ conversation_id: 'conv-1' });

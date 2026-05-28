@@ -124,6 +124,91 @@ async function readTextFileOrEmpty(filePath: string): Promise<string> {
   }
 }
 
+type HermesSessionSummary = {
+  id: string;
+  title?: string;
+  model?: string;
+  platform?: string;
+  session_start?: string;
+  last_updated?: string;
+  path?: string;
+};
+
+function firstString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return undefined;
+}
+
+function firstUserMessagePreview(json: Record<string, unknown>): string | undefined {
+  const messages = Array.isArray(json.messages) ? json.messages : [];
+  for (const message of messages) {
+    if (!message || typeof message !== 'object') continue;
+    const item = message as Record<string, unknown>;
+    if (item.role !== 'user') continue;
+    const content = item.content;
+    if (typeof content === 'string') return content.trim().slice(0, 120);
+    if (Array.isArray(content)) {
+      for (const part of content) {
+        if (typeof part === 'string' && part.trim()) return part.trim().slice(0, 120);
+        if (part && typeof part === 'object') {
+          const text = firstString((part as Record<string, unknown>).text, (part as Record<string, unknown>).content);
+          if (text) return text.slice(0, 120);
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+async function readHermesSessionFile(filePath: string): Promise<(HermesSessionSummary & { sortTime: number }) | null> {
+  try {
+    const [raw, stat] = await Promise.all([fs.readFile(filePath, 'utf8'), fs.stat(filePath)]);
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object') return null;
+    const json = parsed as Record<string, unknown>;
+    const stem = path.basename(filePath, path.extname(filePath));
+    const id = firstString(json.session_id, json.id) ?? stem;
+    const title = firstString(json.title, json.name, firstUserMessagePreview(json)) ?? stem;
+    const lastUpdated = firstString(json.last_updated, json.updated_at, json.updatedAt);
+    const sessionStart = firstString(json.session_start, json.started_at, json.created_at, json.createdAt);
+    const sortTime = lastUpdated ? Date.parse(lastUpdated) || stat.mtimeMs : stat.mtimeMs;
+    return {
+      id,
+      title,
+      model: firstString(json.model, json.model_id, json.modelId),
+      platform: firstString(json.platform, json.provider, json.agent),
+      session_start: sessionStart,
+      last_updated: lastUpdated,
+      path: filePath,
+      sortTime,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function listHermesSessions(limit: number): Promise<HermesSessionSummary[]> {
+  const hermesHome = process.env.HERMES_HOME || path.join(homedir(), '.hermes');
+  const sessionsDir = path.join(hermesHome, 'sessions');
+  let entries: string[];
+  try {
+    entries = await fs.readdir(sessionsDir);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
+  }
+
+  const sessionFiles = entries.filter((entry) => path.extname(entry).toLowerCase() === '.json');
+  const sessions = await Promise.all(sessionFiles.map((entry) => readHermesSessionFile(path.join(sessionsDir, entry))));
+  return sessions
+    .filter((session): session is HermesSessionSummary & { sortTime: number } => session !== null)
+    .toSorted((a, b) => b.sortTime - a.sortTime)
+    .slice(0, limit)
+    .map(({ sortTime: _sortTime, ...session }) => session);
+}
+
 async function handleHermesMemoryRoute(
   req: IncomingMessage,
   res: ServerResponse,
@@ -159,6 +244,31 @@ async function handleHermesMemoryRoute(
   }
 
   sendJson(res, 405, { success: false, error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' });
+  return true;
+}
+
+async function handleHermesSessionsRoute(
+  req: IncomingMessage,
+  res: ServerResponse,
+  backendPort: number
+): Promise<boolean> {
+  const url = new URL(req.url ?? '', 'http://127.0.0.1');
+  if (url.pathname !== '/api/agents/hermes/sessions') return false;
+
+  if (!(await isAuthenticated(req, backendPort))) {
+    sendJson(res, 401, { success: false, error: 'Authentication required', code: 'UNAUTHENTICATED' });
+    return true;
+  }
+
+  if (req.method !== 'GET') {
+    sendJson(res, 405, { success: false, error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' });
+    return true;
+  }
+
+  const requestedLimit = Number.parseInt(url.searchParams.get('limit') ?? '', 10);
+  const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 100) : 20;
+  const sessions = await listHermesSessions(limit);
+  sendJson(res, 200, { success: true, data: { sessions } });
   return true;
 }
 
@@ -235,6 +345,9 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
       }
 
       if (await handleHermesMemoryRoute(req, res, opts.backendPort)) {
+        return;
+      }
+      if (await handleHermesSessionsRoute(req, res, opts.backendPort)) {
         return;
       }
 

@@ -765,6 +765,20 @@ export const acpConversation = {
   hermesExt: {
     getMemory: httpGet<{ memory: string; user: string }, void>('/api/agents/hermes/memory', { silentStatuses: [404] }),
     setMemory: httpPut<void, { memory: string; user: string }>('/api/agents/hermes/memory'),
+    listSessions: httpGet<
+      {
+        sessions: Array<{
+          id: string;
+          title?: string;
+          model?: string;
+          platform?: string;
+          session_start?: string;
+          last_updated?: string;
+          path?: string;
+        }>;
+      },
+      void
+    >('/api/agents/hermes/sessions?limit=20', { silentStatuses: [404] }),
     getCapabilities: httpGet<
       {
         compress?: boolean;
