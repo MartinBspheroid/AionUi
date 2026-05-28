@@ -295,6 +295,118 @@ describe('static-server', () => {
     }
   });
 
+  it('/api/agents/hermes/cron/jobs requires authenticated backend status', async () => {
+    const hermesHome = await fs.mkdtemp(path.join(os.tmpdir(), 'hermes-home-'));
+    const oldHome = process.env.HERMES_HOME;
+    process.env.HERMES_HOME = hermesHome;
+    try {
+      const backend = await startMockBackend((req, res) => {
+        if (req.url === '/api/auth/status') {
+          expect(req.headers.cookie).toBe('aionui-session=test');
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ success: true, is_authenticated: false }));
+          return;
+        }
+        res.writeHead(404).end();
+      });
+      stopBackend = backend.close;
+      handle = await startStaticServer({ staticDir, backendPort: backend.port, port: 0 });
+
+      const r = await fetch(`${handle.localUrl}/api/agents/hermes/cron/jobs`, {
+        headers: { cookie: 'aionui-session=test' },
+      });
+      expect(r.status).toBe(401);
+      const json = (await r.json()) as { code: string };
+      expect(json.code).toBe('UNAUTHENTICATED');
+    } finally {
+      if (oldHome === undefined) delete process.env.HERMES_HOME;
+      else process.env.HERMES_HOME = oldHome;
+      await fs.rm(hermesHome, { recursive: true, force: true });
+    }
+  });
+
+  it('/api/agents/hermes/cron/jobs lists authenticated Hermes cron jobs without prompts', async () => {
+    const hermesHome = await fs.mkdtemp(path.join(os.tmpdir(), 'hermes-home-'));
+    const oldHome = process.env.HERMES_HOME;
+    process.env.HERMES_HOME = hermesHome;
+    const cronDir = path.join(hermesHome, 'cron');
+    await fs.mkdir(cronDir, { recursive: true });
+    await fs.writeFile(
+      path.join(cronDir, 'jobs.json'),
+      JSON.stringify({
+        jobs: [
+          {
+            id: 'paused-job',
+            name: 'Paused report',
+            prompt: 'sensitive long prompt',
+            enabled: false,
+            state: 'paused',
+            schedule: { kind: 'cron', expr: '0 8 * * *', display: '0 8 * * *' },
+            repeat: { completed: 3, times: null },
+            last_status: 'ok',
+            deliver: 'local',
+          },
+          {
+            id: 'active-error',
+            name: 'Active failing script',
+            enabled: true,
+            state: 'scheduled',
+            schedule_display: 'every 180m',
+            schedule: { kind: 'interval', minutes: 180, display: 'every 180m' },
+            repeat: { completed: 7, times: 9 },
+            next_run_at: '2026-05-03T11:00:00.000Z',
+            last_run_at: '2026-05-03T10:00:00.000Z',
+            last_status: 'error',
+            last_error: 'Script exited with code 1',
+            deliver: 'local',
+            script: 'job.py',
+            no_agent: true,
+            skills: ['example-skill'],
+          },
+        ],
+      })
+    );
+    try {
+      const backend = await startMockBackend((req, res) => {
+        if (req.url === '/api/auth/status') {
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ success: true, is_authenticated: true }));
+          return;
+        }
+        res.writeHead(404).end();
+      });
+      stopBackend = backend.close;
+      handle = await startStaticServer({ staticDir, backendPort: backend.port, port: 0 });
+
+      const r = await fetch(`${handle.localUrl}/api/agents/hermes/cron/jobs?limit=100`, {
+        headers: { cookie: 'aionui-session=test' },
+      });
+      expect(r.status).toBe(200);
+      const json = (await r.json()) as {
+        data: {
+          total: number;
+          active: number;
+          paused: number;
+          errors: number;
+          jobs: Array<{ id: string; prompt?: unknown; schedule_display?: string; script?: string; repeat_times?: number | null }>;
+        };
+      };
+      expect(json.data).toMatchObject({ total: 2, active: 1, paused: 1, errors: 1 });
+      expect(json.data.jobs[0]).toMatchObject({
+        id: 'active-error',
+        schedule_display: 'every 180m',
+        script: 'job.py',
+        repeat_times: 9,
+      });
+      expect(json.data.jobs[0].prompt).toBeUndefined();
+      expect(json.data.jobs[1]).toMatchObject({ id: 'paused-job', repeat_times: null });
+    } finally {
+      if (oldHome === undefined) delete process.env.HERMES_HOME;
+      else process.env.HERMES_HOME = oldHome;
+      await fs.rm(hermesHome, { recursive: true, force: true });
+    }
+  });
+
   it('/api/agents/hermes/memory reads and writes Hermes memory files when authenticated', async () => {
     const hermesHome = await fs.mkdtemp(path.join(os.tmpdir(), 'hermes-home-'));
     const oldHome = process.env.HERMES_HOME;

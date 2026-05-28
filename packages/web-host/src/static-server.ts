@@ -158,11 +158,61 @@ type HermesSessionSummary = {
   path?: string;
 };
 
+type HermesCronJobSummary = {
+  id: string;
+  name: string;
+  enabled: boolean;
+  state?: string;
+  schedule_display?: string;
+  schedule_kind?: string;
+  schedule_expr?: string;
+  repeat_completed?: number;
+  repeat_times?: number | null;
+  next_run_at?: string;
+  last_run_at?: string;
+  last_status?: string;
+  last_error?: string;
+  last_delivery_error?: string;
+  deliver?: string;
+  script?: string;
+  no_agent?: boolean;
+  workdir?: string;
+  model?: string;
+  provider?: string;
+  skills?: string[];
+};
+
+type HermesCronJobsResponse = {
+  jobs: HermesCronJobSummary[];
+  total: number;
+  active: number;
+  paused: number;
+  errors: number;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
 function firstString(...values: unknown[]): string | undefined {
   for (const value of values) {
     if (typeof value === 'string' && value.trim()) return value.trim();
   }
   return undefined;
+}
+
+function optionalNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function optionalBoolean(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function optionalStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const strings = value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+  return strings.length ? strings : undefined;
 }
 
 function firstUserMessagePreview(json: Record<string, unknown>): string | undefined {
@@ -233,6 +283,78 @@ async function listHermesSessions(limit: number): Promise<HermesSessionSummary[]
     .map(({ sortTime: _sortTime, ...session }) => session);
 }
 
+function normalizeHermesCronJob(raw: unknown): (HermesCronJobSummary & { sortTime: number }) | null {
+  if (!isRecord(raw)) return null;
+  const id = firstString(raw.id);
+  if (!id) return null;
+  const schedule = isRecord(raw.schedule) ? raw.schedule : {};
+  const repeat = isRecord(raw.repeat) ? raw.repeat : {};
+  const nextRunAt = firstString(raw.next_run_at);
+  const lastRunAt = firstString(raw.last_run_at);
+  const sortTime = nextRunAt ? Date.parse(nextRunAt) || Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER;
+  const repeatTimes = optionalNumber(repeat.times) ?? (repeat.times === null ? null : undefined);
+
+  return {
+    id,
+    name: firstString(raw.name) ?? id,
+    enabled: optionalBoolean(raw.enabled) ?? raw.state !== 'paused',
+    state: firstString(raw.state),
+    schedule_display: firstString(raw.schedule_display, schedule.display),
+    schedule_kind: firstString(schedule.kind),
+    schedule_expr: firstString(schedule.expr),
+    repeat_completed: optionalNumber(repeat.completed),
+    repeat_times: repeatTimes,
+    next_run_at: nextRunAt,
+    last_run_at: lastRunAt,
+    last_status: firstString(raw.last_status),
+    last_error: firstString(raw.last_error),
+    last_delivery_error: firstString(raw.last_delivery_error),
+    deliver: firstString(raw.deliver),
+    script: firstString(raw.script),
+    no_agent: optionalBoolean(raw.no_agent),
+    workdir: firstString(raw.workdir),
+    model: firstString(raw.model),
+    provider: firstString(raw.provider),
+    skills: optionalStringArray(raw.skills),
+    sortTime,
+  };
+}
+
+async function listHermesCronJobs(limit: number): Promise<HermesCronJobsResponse> {
+  const jobsPath = path.join(getHermesHome(), 'cron', 'jobs.json');
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await fs.readFile(jobsPath, 'utf8')) as unknown;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { jobs: [], total: 0, active: 0, paused: 0, errors: 0 };
+    }
+    throw error;
+  }
+
+  const rawJobs = isRecord(parsed) && Array.isArray(parsed.jobs) ? parsed.jobs : [];
+  const jobs = rawJobs
+    .map(normalizeHermesCronJob)
+    .filter((job): job is HermesCronJobSummary & { sortTime: number } => job !== null);
+  const active = jobs.filter((job) => job.enabled).length;
+  const paused = jobs.filter((job) => !job.enabled || job.state === 'paused').length;
+  const errors = jobs.filter((job) => job.last_status === 'error' || !!job.last_error || !!job.last_delivery_error).length;
+
+  return {
+    jobs: jobs
+      .toSorted((a, b) => {
+        if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
+        return a.sortTime - b.sortTime;
+      })
+      .slice(0, limit)
+      .map(({ sortTime: _sortTime, ...job }) => job),
+    total: jobs.length,
+    active,
+    paused,
+    errors,
+  };
+}
+
 async function handleHermesMemoryRoute(
   req: IncomingMessage,
   res: ServerResponse,
@@ -295,6 +417,31 @@ async function handleHermesSessionsRoute(
   const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 100) : 20;
   const sessions = await listHermesSessions(limit);
   sendJson(res, 200, { success: true, data: { sessions } });
+  return true;
+}
+
+async function handleHermesCronJobsRoute(
+  req: IncomingMessage,
+  res: ServerResponse,
+  backendPort: number
+): Promise<boolean> {
+  const url = new URL(req.url ?? '', 'http://127.0.0.1');
+  if (url.pathname !== '/api/agents/hermes/cron/jobs') return false;
+
+  if (!(await isAuthenticated(req, backendPort))) {
+    sendJson(res, 401, { success: false, error: 'Authentication required', code: 'UNAUTHENTICATED' });
+    return true;
+  }
+
+  if (req.method !== 'GET') {
+    sendJson(res, 405, { success: false, error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' });
+    return true;
+  }
+
+  const requestedLimit = Number.parseInt(url.searchParams.get('limit') ?? '', 10);
+  const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 200) : 100;
+  const data = await listHermesCronJobs(limit);
+  sendJson(res, 200, { success: true, data });
   return true;
 }
 
@@ -376,6 +523,9 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
       if (await handleHermesSessionsRoute(req, res, opts.backendPort)) {
         return;
       }
+      if (await handleHermesCronJobsRoute(req, res, opts.backendPort)) {
+        return;
+      }
 
       // /api/* — reverse proxy to backend (includes /api/auth/*).
       // /login and /logout are aionui-auth's top-level auth endpoints: proxy them too
@@ -417,7 +567,10 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
   // route to either the backend (for /ws upgrades) or the internal HTTP
   // server (everything else). Both routes use raw TCP splice — no reliance
   // on http.Server's upgrade event.
+  const activeSockets = new Set<Socket>();
   const tcp_server = net.createServer((client: Socket) => {
+    activeSockets.add(client);
+    client.on('close', () => activeSockets.delete(client));
     let peeked = Buffer.alloc(0);
     let settled = false;
     const cleanup = (): void => {
@@ -470,6 +623,8 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
     lanIP,
     stop: () =>
       new Promise<void>((resolve) => {
+        activeSockets.forEach((socket) => socket.destroy());
+        http_server.closeAllConnections?.();
         tcp_server.close(() => {
           http_server.close(() => resolve());
         });

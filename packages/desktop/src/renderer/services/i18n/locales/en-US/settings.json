@@ -939,6 +939,34 @@
         "platform": "Platform",
         "lastUpdated": "Last updated"
       }
+    },
+    "cron": {
+      "tabTitle": "Tasks",
+      "title": "Hermes Cron Jobs",
+      "description": "Browse read-only scheduled jobs from the active Hermes profile.",
+      "loadError": "Failed to load Hermes cron jobs",
+      "empty": "No Hermes cron jobs found",
+      "unsupportedTitle": "Hermes cron API unavailable",
+      "unsupportedDescription": "Aioncore must provide GET /api/agents/hermes/cron/jobs before this panel can list cron jobs.",
+      "summary": {
+        "total": "Total",
+        "active": "Active",
+        "paused": "Paused",
+        "errors": "Errors"
+      },
+      "status": {
+        "active": "Active",
+        "paused": "Paused",
+        "error": "Error"
+      },
+      "columns": {
+        "name": "Name",
+        "status": "Status",
+        "schedule": "Schedule",
+        "nextRun": "Next run",
+        "lastRun": "Last run",
+        "details": "Details"
+      }
     }
   }
 }

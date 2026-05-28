@@ -779,6 +779,38 @@ export const acpConversation = {
       },
       void
     >('/api/agents/hermes/sessions?limit=20', { silentStatuses: [404] }),
+    listCronJobs: httpGet<
+      {
+        jobs: Array<{
+          id: string;
+          name: string;
+          enabled: boolean;
+          state?: string;
+          schedule_display?: string;
+          schedule_kind?: string;
+          schedule_expr?: string;
+          repeat_completed?: number;
+          repeat_times?: number | null;
+          next_run_at?: string;
+          last_run_at?: string;
+          last_status?: string;
+          last_error?: string;
+          last_delivery_error?: string;
+          deliver?: string;
+          script?: string;
+          no_agent?: boolean;
+          workdir?: string;
+          model?: string;
+          provider?: string;
+          skills?: string[];
+        }>;
+        total: number;
+        active: number;
+        paused: number;
+        errors: number;
+      },
+      void
+    >('/api/agents/hermes/cron/jobs?limit=100', { silentStatuses: [404] }),
     getCapabilities: httpGet<
       {
         compress?: boolean;
