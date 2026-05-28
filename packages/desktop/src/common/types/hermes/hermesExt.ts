@@ -112,3 +112,30 @@ export type HermesCheckpoint = {
   timestamp?: string;
   label?: string;
 };
+
+export type HermesSkillSummary = {
+  /** Folder name containing SKILL.md (unique within a category). */
+  name: string;
+  /** Top-level category folder, or empty string for uncategorized skills. */
+  category: string;
+  /** Stable identifier: `${category}/${name}` (or just `name` if uncategorized). */
+  id: string;
+  /** First paragraph from YAML frontmatter `description`, may be empty. */
+  description: string;
+  /** Optional semver string extracted from frontmatter. */
+  version?: string;
+  /** Tags from `metadata.hermes.tags`, may be empty. */
+  tags: string[];
+};
+
+export type HermesSkillsResponse = {
+  skills: HermesSkillSummary[];
+  categories: string[];
+};
+
+export type HermesSkillDetail = HermesSkillSummary & {
+  /** Full SKILL.md content. */
+  content: string;
+  /** Sibling files (relative paths, excluding SKILL.md itself). */
+  files: string[];
+};

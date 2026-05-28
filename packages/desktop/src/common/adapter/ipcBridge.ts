@@ -53,6 +53,8 @@ import type {
   HermesMemoryPayload,
   HermesMemoryUpdate,
   HermesSessionsResponse,
+  HermesSkillDetail,
+  HermesSkillsResponse,
 } from '../types/hermes/hermesExt';
 import type {
   AutoUpdateStatus,
@@ -781,6 +783,11 @@ export const acpConversation = {
     listCronJobs: httpGet<HermesCronJobsResponse, void>('/api/agents/hermes/cron/jobs?limit=100', {
       silentStatuses: [404],
     }),
+    listSkills: httpGet<HermesSkillsResponse, void>('/api/agents/hermes/skills', { silentStatuses: [404] }),
+    getSkill: httpGet<HermesSkillDetail, { id: string }>(
+      (p) => `/api/agents/hermes/skills?id=${encodeURIComponent(p.id)}`,
+      { silentStatuses: [404] }
+    ),
     getCliConfig: httpGet<HermesCliConfigResponse, void>('/api/agents/hermes/cli-config', { silentStatuses: [404] }),
     runCliCommand: httpPost<HermesCliRunResponse, { command_id: string }>('/api/agents/hermes/cli-config'),
     getCapabilities: httpGet<HermesCapabilities, { conversation_id: string }>(

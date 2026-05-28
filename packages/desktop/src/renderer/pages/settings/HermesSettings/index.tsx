@@ -12,6 +12,7 @@ import CliConfigPanel from './CliConfigPanel';
 import CronJobsPanel from './CronJobsPanel';
 import MemoryPanel from './MemoryPanel';
 import SessionsPanel from './SessionsPanel';
+import SkillsPanel from './SkillsPanel';
 
 const HermesSettings: React.FC = () => {
   const { t } = useTranslation();
@@ -24,6 +25,9 @@ const HermesSettings: React.FC = () => {
         </Tabs.TabPane>
         <Tabs.TabPane key='sessions' title={t('settings.hermes.sessions.tabTitle')}>
           <SessionsPanel />
+        </Tabs.TabPane>
+        <Tabs.TabPane key='skills' title={t('settings.hermes.skills.tabTitle')}>
+          <SkillsPanel />
         </Tabs.TabPane>
         <Tabs.TabPane key='cron' title={t('settings.hermes.cron.tabTitle')}>
           <CronJobsPanel />

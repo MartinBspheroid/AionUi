@@ -864,6 +864,218 @@ async function handleHermesCronJobsRoute(
   return true;
 }
 
+type HermesSkillSummary = {
+  name: string;
+  category: string;
+  id: string;
+  description: string;
+  version?: string;
+  tags: string[];
+};
+
+type HermesSkillDetail = HermesSkillSummary & {
+  content: string;
+  files: string[];
+};
+
+function getHermesSkillsDir(hermesHome = getHermesHome()): string {
+  return process.env.HERMES_SKILLS_DIR || path.join(hermesHome, 'skills');
+}
+
+/**
+ * Parse only the keys we need from a SKILL.md YAML frontmatter block:
+ * `name`, `description`, `version`, and `metadata.hermes.tags`. Avoids
+ * pulling in a YAML dep for a format that's effectively a fixed schema.
+ */
+function parseSkillFrontmatter(text: string): {
+  name?: string;
+  description?: string;
+  version?: string;
+  tags: string[];
+} {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  if (!match) return { tags: [] };
+  const body = match[1];
+  const unquote = (raw: string): string => {
+    const trimmed = raw.trim();
+    if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+      return trimmed.slice(1, -1);
+    }
+    return trimmed;
+  };
+  const pickTop = (key: string): string | undefined => {
+    const pattern = new RegExp(`^${key}\\s*:\\s*(.+)$`, 'm');
+    const m = pattern.exec(body);
+    return m ? unquote(m[1]) : undefined;
+  };
+  const name = pickTop('name');
+  const description = pickTop('description');
+  const version = pickTop('version');
+  let tags: string[] = [];
+  const tagsMatch = /^\s{0,4}tags\s*:\s*\[([^\]]*)\]/m.exec(body);
+  if (tagsMatch) {
+    tags = tagsMatch[1]
+      .split(',')
+      .map((entry) => unquote(entry))
+      .filter((entry) => entry.length > 0);
+  }
+  return { name, description, version, tags };
+}
+
+async function readSkillSummary(skillMdPath: string, name: string, category: string): Promise<HermesSkillSummary> {
+  let frontmatter: ReturnType<typeof parseSkillFrontmatter> = { tags: [] };
+  try {
+    const text = await fs.readFile(skillMdPath, 'utf8');
+    frontmatter = parseSkillFrontmatter(text);
+  } catch {
+    // Unreadable SKILL.md still yields a usable summary from the folder name.
+  }
+  const id = category ? `${category}/${name}` : name;
+  return {
+    name: frontmatter.name || name,
+    category,
+    id,
+    description: frontmatter.description || '',
+    version: frontmatter.version,
+    tags: frontmatter.tags,
+  };
+}
+
+async function listHermesSkills(): Promise<{ skills: HermesSkillSummary[]; categories: string[] }> {
+  const skillsDir = getHermesSkillsDir();
+  let topEntries: import('node:fs').Dirent[];
+  try {
+    topEntries = await fs.readdir(skillsDir, { withFileTypes: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { skills: [], categories: [] };
+    throw error;
+  }
+
+  const collected: HermesSkillSummary[] = [];
+  const categories = new Set<string>();
+
+  for (const entry of topEntries) {
+    if (!entry.isDirectory()) continue;
+    const topPath = path.join(skillsDir, entry.name);
+    // Uncategorized skill: <skillsDir>/<name>/SKILL.md
+    const directSkill = path.join(topPath, 'SKILL.md');
+    let stat;
+    try {
+      stat = await fs.stat(directSkill);
+    } catch {
+      stat = null;
+    }
+    if (stat?.isFile()) {
+      collected.push(await readSkillSummary(directSkill, entry.name, ''));
+      continue;
+    }
+    // Otherwise treat entry.name as a category and look one level deeper.
+    let categoryEntries: import('node:fs').Dirent[];
+    try {
+      categoryEntries = await fs.readdir(topPath, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    let hasSkill = false;
+    for (const sub of categoryEntries) {
+      if (!sub.isDirectory()) continue;
+      const skillMd = path.join(topPath, sub.name, 'SKILL.md');
+      try {
+        const subStat = await fs.stat(skillMd);
+        if (subStat.isFile()) {
+          collected.push(await readSkillSummary(skillMd, sub.name, entry.name));
+          hasSkill = true;
+        }
+      } catch {
+        // missing SKILL.md is fine; just not a skill folder
+      }
+    }
+    if (hasSkill) categories.add(entry.name);
+  }
+
+  collected.sort((a, b) => {
+    // Uncategorized skills last; otherwise alphabetic by category then name.
+    if (!a.category && b.category) return 1;
+    if (a.category && !b.category) return -1;
+    const catCmp = a.category.localeCompare(b.category);
+    if (catCmp !== 0) return catCmp;
+    return a.name.localeCompare(b.name);
+  });
+  return { skills: collected, categories: [...categories].toSorted() };
+}
+
+async function readHermesSkillDetail(id: string): Promise<HermesSkillDetail | null> {
+  const skillsDir = getHermesSkillsDir();
+  // id is `category/name` or `name`. Reject anything that escapes the skills tree.
+  const parts = id.split('/').filter((p) => p.length > 0);
+  if (parts.length === 0 || parts.length > 2 || parts.some((p) => p === '.' || p === '..' || p.includes('\\'))) {
+    return null;
+  }
+  const skillDir = path.join(skillsDir, ...parts);
+  const resolved = path.resolve(skillDir);
+  const resolvedRoot = path.resolve(skillsDir);
+  if (!resolved.startsWith(`${resolvedRoot}${path.sep}`) && resolved !== resolvedRoot) return null;
+
+  const skillMdPath = path.join(skillDir, 'SKILL.md');
+  let content: string;
+  try {
+    content = await fs.readFile(skillMdPath, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw error;
+  }
+  const name = parts[parts.length - 1];
+  const category = parts.length === 2 ? parts[0] : '';
+  const summary = await readSkillSummary(skillMdPath, name, category);
+
+  let files: string[] = [];
+  try {
+    const entries = await fs.readdir(skillDir, { withFileTypes: true });
+    files = entries
+      .filter((entry) => entry.isFile() && entry.name !== 'SKILL.md')
+      .map((entry) => entry.name)
+      .toSorted();
+  } catch {
+    // sibling listing failures don't fail the detail response
+  }
+
+  return { ...summary, content, files };
+}
+
+async function handleHermesSkillsRoute(
+  req: IncomingMessage,
+  res: ServerResponse,
+  backendPort: number
+): Promise<boolean> {
+  const url = new URL(req.url ?? '', 'http://127.0.0.1');
+  if (url.pathname !== '/api/agents/hermes/skills') return false;
+
+  if (!(await isAuthenticated(req, backendPort))) {
+    sendJson(res, 401, { success: false, error: 'Authentication required', code: 'UNAUTHENTICATED' });
+    return true;
+  }
+
+  if (req.method !== 'GET') {
+    sendJson(res, 405, { success: false, error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' });
+    return true;
+  }
+
+  const id = url.searchParams.get('id');
+  if (id) {
+    const detail = await readHermesSkillDetail(id);
+    if (!detail) {
+      sendJson(res, 404, { success: false, error: 'Skill not found', code: 'NOT_FOUND' });
+      return true;
+    }
+    sendJson(res, 200, { success: true, data: detail });
+    return true;
+  }
+
+  const data = await listHermesSkills();
+  sendJson(res, 200, { success: true, data });
+  return true;
+}
+
 // Max bytes we peek before forcing a routing decision. An HTTP request-line
 // on its own is typically < 100 bytes; a full header block is < 2 KB. If we
 // haven't seen a newline after 4 KB the client is sending something weird —
@@ -946,6 +1158,9 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
         return;
       }
       if (await handleHermesCronJobsRoute(req, res, opts.backendPort)) {
+        return;
+      }
+      if (await handleHermesSkillsRoute(req, res, opts.backendPort)) {
         return;
       }
 

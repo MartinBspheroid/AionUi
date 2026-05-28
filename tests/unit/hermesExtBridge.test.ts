@@ -77,6 +77,55 @@ describe('Hermes ACP extension bridge', () => {
     );
   });
 
+  it('lists Hermes skills from the documented backend route', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      json: async () => ({
+        data: {
+          skills: [{ id: 'creative/p5js', name: 'p5js', category: 'creative', description: '', tags: [] }],
+          categories: ['creative'],
+        },
+      }),
+    });
+
+    const result = await acpConversation.hermesExt.listSkills.invoke();
+    expect(result.categories).toEqual(['creative']);
+    expect(result.skills).toHaveLength(1);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:13400/api/agents/hermes/skills',
+      expect.objectContaining({ method: 'GET' })
+    );
+  });
+
+  it('encodes skill ids with embedded slashes when fetching a single skill', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      json: async () => ({
+        data: {
+          id: 'autonomous-ai-agents/claude code',
+          name: 'claude code',
+          category: 'autonomous-ai-agents',
+          description: '',
+          tags: [],
+          content: '# Claude',
+          files: [],
+        },
+      }),
+    });
+
+    await acpConversation.hermesExt.getSkill.invoke({ id: 'autonomous-ai-agents/claude code' });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:13400/api/agents/hermes/skills?id=autonomous-ai-agents%2Fclaude%20code',
+      expect.objectContaining({ method: 'GET' })
+    );
+  });
+
   it('maps header action bridge calls to Hermes conversation endpoints', async () => {
     await acpConversation.hermesExt.compress.invoke({ conversation_id: 'conv-1', focus: 'tools' });
     await acpConversation.hermesExt.retry.invoke({ conversation_id: 'conv-1' });

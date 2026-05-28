@@ -595,6 +595,79 @@ else console.log('ran ' + args.join(' '));
     expect(status).toMatch(/HTTP\/1\.1 101/i);
   });
 
+  it('/api/agents/hermes/skills enumerates SKILL.md files grouped by category', async () => {
+    const hermesHome = await fs.mkdtemp(path.join(os.tmpdir(), 'hermes-home-'));
+    const oldHome = process.env.HERMES_HOME;
+    process.env.HERMES_HOME = hermesHome;
+    const skillsDir = path.join(hermesHome, 'skills');
+    await fs.mkdir(path.join(skillsDir, 'creative', 'p5js'), { recursive: true });
+    await fs.writeFile(
+      path.join(skillsDir, 'creative', 'p5js', 'SKILL.md'),
+      [
+        '---',
+        'name: p5js',
+        'description: "p5.js sketches: gen art, shaders, interactive, 3D."',
+        'version: 1.0.0',
+        'metadata:',
+        '  hermes:',
+        '    tags: [creative-coding, generative-art, p5js]',
+        '---',
+        '',
+        '# p5.js Production Pipeline',
+      ].join('\n')
+    );
+    await fs.writeFile(path.join(skillsDir, 'creative', 'p5js', 'extras.md'), '## sibling');
+    await fs.mkdir(path.join(skillsDir, 'uncategorized-skill'), { recursive: true });
+    await fs.writeFile(
+      path.join(skillsDir, 'uncategorized-skill', 'SKILL.md'),
+      ['---', 'name: uncategorized-skill', 'description: top-level demo', '---', '', 'Body'].join('\n')
+    );
+    try {
+      const backend = await startMockBackend((req, res) => {
+        if (req.url === '/api/auth/status') {
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ success: true, is_authenticated: true }));
+          return;
+        }
+        res.writeHead(404).end();
+      });
+      stopBackend = backend.close;
+      handle = await startStaticServer({ staticDir, backendPort: backend.port, port: 0 });
+
+      const listResponse = await fetch(`${handle.localUrl}/api/agents/hermes/skills`, {
+        headers: { cookie: 'aionui-session=test' },
+      });
+      expect(listResponse.status).toBe(200);
+      const listJson = (await listResponse.json()) as {
+        data: { skills: Array<{ id: string; name: string; category: string; tags: string[] }>; categories: string[] };
+      };
+      expect(listJson.data.categories).toEqual(['creative']);
+      expect(listJson.data.skills.map((s) => s.id)).toEqual(['creative/p5js', 'uncategorized-skill']);
+      expect(listJson.data.skills[0].tags).toContain('p5js');
+
+      const detailResponse = await fetch(
+        `${handle.localUrl}/api/agents/hermes/skills?id=${encodeURIComponent('creative/p5js')}`,
+        { headers: { cookie: 'aionui-session=test' } }
+      );
+      expect(detailResponse.status).toBe(200);
+      const detailJson = (await detailResponse.json()) as {
+        data: { name: string; content: string; files: string[] };
+      };
+      expect(detailJson.data.name).toBe('p5js');
+      expect(detailJson.data.content).toContain('# p5.js Production Pipeline');
+      expect(detailJson.data.files).toEqual(['extras.md']);
+
+      const traversal = await fetch(`${handle.localUrl}/api/agents/hermes/skills?id=${encodeURIComponent('../etc')}`, {
+        headers: { cookie: 'aionui-session=test' },
+      });
+      expect(traversal.status).toBe(404);
+    } finally {
+      if (oldHome === undefined) delete process.env.HERMES_HOME;
+      else process.env.HERMES_HOME = oldHome;
+      await fs.rm(hermesHome, { recursive: true, force: true });
+    }
+  });
+
   it('network URL populated only when allowRemote=true', async () => {
     const backend = await startMockBackend((_req, res) => res.end('nope'));
     stopBackend = backend.close;

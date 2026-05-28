@@ -944,6 +944,26 @@
         "platform": "Platform",
         "lastUpdated": "Last updated"
       }
+    },
+    "skills": {
+      "tabTitle": "Skills",
+      "title": "Hermes Skills",
+      "description": "Browse installed Hermes skills from the active profile (read-only).",
+      "installed": "Installed skills",
+      "loadError": "Failed to load Hermes skills",
+      "empty": "No Hermes skills found",
+      "searchPlaceholder": "Search skills...",
+      "uncategorized": "Uncategorized",
+      "detailTitle": "Skill detail",
+      "selectPrompt": "Select a skill to view its SKILL.md content.",
+      "siblingFiles": "Bundled files",
+      "unsupportedTitle": "Hermes skills API unavailable",
+      "unsupportedDescription": "Aioncore must provide GET /api/agents/hermes/skills before this browser can list skills.",
+      "summary": {
+        "total": "Total skills",
+        "categories": "Categories",
+        "filtered": "Matching filter"
+      }
     }
   }
 }
