@@ -299,8 +299,10 @@ describe('static-server', () => {
     const hermesHome = await fs.mkdtemp(path.join(os.tmpdir(), 'hermes-home-'));
     const oldHome = process.env.HERMES_HOME;
     process.env.HERMES_HOME = hermesHome;
-    await fs.writeFile(path.join(hermesHome, 'MEMORY.md'), 'old memory');
-    await fs.writeFile(path.join(hermesHome, 'USER.md'), 'old user');
+    const memoryDir = path.join(hermesHome, 'memories');
+    await fs.mkdir(memoryDir);
+    await fs.writeFile(path.join(memoryDir, 'MEMORY.md'), 'old memory');
+    await fs.writeFile(path.join(memoryDir, 'USER.md'), 'old user');
     try {
       const backend = await startMockBackend((req, res) => {
         if (req.url === '/api/auth/status') {
@@ -325,8 +327,8 @@ describe('static-server', () => {
         body: JSON.stringify({ memory: 'new memory', user: 'new user' }),
       });
       expect(write.status).toBe(200);
-      await expect(fs.readFile(path.join(hermesHome, 'MEMORY.md'), 'utf8')).resolves.toBe('new memory');
-      await expect(fs.readFile(path.join(hermesHome, 'USER.md'), 'utf8')).resolves.toBe('new user');
+      await expect(fs.readFile(path.join(memoryDir, 'MEMORY.md'), 'utf8')).resolves.toBe('new memory');
+      await expect(fs.readFile(path.join(memoryDir, 'USER.md'), 'utf8')).resolves.toBe('new user');
     } finally {
       if (oldHome === undefined) delete process.env.HERMES_HOME;
       else process.env.HERMES_HOME = oldHome;

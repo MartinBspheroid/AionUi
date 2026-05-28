@@ -115,13 +115,37 @@ async function isAuthenticated(req: IncomingMessage, backendPort: number): Promi
   });
 }
 
-async function readTextFileOrEmpty(filePath: string): Promise<string> {
-  try {
-    return await fs.readFile(filePath, 'utf8');
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return '';
-    throw error;
-  }
+async function readFirstExistingTextFileOrEmpty(filePaths: string[]): Promise<string> {
+  const results = await Promise.all(
+    filePaths.map(async (filePath) => {
+      try {
+        return { exists: true, content: await fs.readFile(filePath, 'utf8') };
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { exists: false, content: '' };
+        throw error;
+      }
+    })
+  );
+  return results.find((result) => result.exists)?.content ?? '';
+}
+
+function getHermesHome(): string {
+  return process.env.HERMES_HOME || path.join(homedir(), '.hermes');
+}
+
+function getHermesMemoryPaths(hermesHome = getHermesHome()): {
+  memoryPath: string;
+  userPath: string;
+  legacyMemoryPath: string;
+  legacyUserPath: string;
+} {
+  const memoryDir = process.env.HERMES_MEMORY_DIR || path.join(hermesHome, 'memories');
+  return {
+    memoryPath: path.join(memoryDir, 'MEMORY.md'),
+    userPath: path.join(memoryDir, 'USER.md'),
+    legacyMemoryPath: path.join(hermesHome, 'MEMORY.md'),
+    legacyUserPath: path.join(hermesHome, 'USER.md'),
+  };
 }
 
 type HermesSessionSummary = {
@@ -190,7 +214,7 @@ async function readHermesSessionFile(filePath: string): Promise<(HermesSessionSu
 }
 
 async function listHermesSessions(limit: number): Promise<HermesSessionSummary[]> {
-  const hermesHome = process.env.HERMES_HOME || path.join(homedir(), '.hermes');
+  const hermesHome = getHermesHome();
   const sessionsDir = path.join(hermesHome, 'sessions');
   let entries: string[];
   try {
@@ -221,12 +245,14 @@ async function handleHermesMemoryRoute(
     return true;
   }
 
-  const hermesHome = process.env.HERMES_HOME || path.join(homedir(), '.hermes');
-  const memoryPath = path.join(hermesHome, 'MEMORY.md');
-  const userPath = path.join(hermesHome, 'USER.md');
+  const hermesHome = getHermesHome();
+  const { memoryPath, userPath, legacyMemoryPath, legacyUserPath } = getHermesMemoryPaths(hermesHome);
 
   if (req.method === 'GET') {
-    const [memory, user] = await Promise.all([readTextFileOrEmpty(memoryPath), readTextFileOrEmpty(userPath)]);
+    const [memory, user] = await Promise.all([
+      readFirstExistingTextFileOrEmpty([memoryPath, legacyMemoryPath]),
+      readFirstExistingTextFileOrEmpty([userPath, legacyUserPath]),
+    ]);
     sendJson(res, 200, { success: true, data: { memory, user } });
     return true;
   }
@@ -237,7 +263,7 @@ async function handleHermesMemoryRoute(
       sendJson(res, 400, { success: false, error: 'Expected { memory: string, user: string }', code: 'BAD_REQUEST' });
       return true;
     }
-    await fs.mkdir(hermesHome, { recursive: true });
+    await fs.mkdir(path.dirname(memoryPath), { recursive: true });
     await Promise.all([fs.writeFile(memoryPath, body.memory), fs.writeFile(userPath, body.user)]);
     sendJson(res, 200, { success: true, data: undefined });
     return true;
