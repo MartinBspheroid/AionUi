@@ -11,6 +11,7 @@ import {
   Info,
   Lightning,
   LinkCloud,
+  MindmapList,
   Puzzle,
   Robot,
   Speed,
@@ -32,6 +33,7 @@ export const BUILTIN_TAB_IDS = [
   'display',
   'webui',
   'pet',
+  'hermes',
   'system',
   'about',
 ] as const;
@@ -108,6 +110,12 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
         path: 'webui',
       },
       pet: { id: 'pet', label: t('pet.desktopPet'), icon: <Cat />, path: 'pet' },
+      hermes: {
+        id: 'hermes',
+        label: t('settings.hermes.title', { defaultValue: 'Hermes' }),
+        icon: <MindmapList />,
+        path: 'hermes',
+      },
       system: { id: 'system', label: t('settings.system'), icon: <System />, path: 'system' },
       about: { id: 'about', label: t('settings.about'), icon: <Info />, path: 'about' },
     };

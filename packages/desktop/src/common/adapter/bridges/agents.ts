@@ -21,6 +21,21 @@ import type { HubExtensionStatus, IHubAgentItem } from '@/common/types/agent/hub
 import type { IMcpServer } from '@/common/config/storage';
 import type { AcpModelInfo } from '@/common/types/platform/acpTypes';
 import type { AgentMetadata } from '@/renderer/utils/model/agentTypes';
+import type {
+  HermesCapabilities,
+  HermesCheckpoint,
+  HermesCliConfigResponse,
+  HermesCliRunResponse,
+  HermesCronCliResponse,
+  HermesCronJobEdit,
+  HermesCronJobInput,
+  HermesCronJobsResponse,
+  HermesMemoryPayload,
+  HermesMemoryUpdate,
+  HermesSessionsResponse,
+  HermesSkillDetail,
+  HermesSkillsResponse,
+} from '@/common/types/hermes/hermesExt';
 import { httpDelete, httpGet, httpPatch, httpPost, httpPut, wsEmitter } from '@/common/adapter/httpBridge';
 import { conversation } from './conversation';
 
@@ -116,6 +131,63 @@ export const acpConversation = {
     (p) => `/api/conversations/${p.conversation_id}/model`,
     (p) => ({ model_id: p.model_id })
   ),
+
+  /** Hermes-specific extensions — all silently unsupported (404) when the active
+   *  agent is not Hermes or the aioncore version does not expose the endpoint. */
+  hermesExt: {
+    getMemory: httpGet<HermesMemoryPayload, void>('/api/agents/hermes/memory', { silentStatuses: [404] }),
+    setMemory: httpPut<void, HermesMemoryUpdate>('/api/agents/hermes/memory'),
+    listSessions: httpGet<HermesSessionsResponse, void>('/api/agents/hermes/sessions?limit=20', {
+      silentStatuses: [404],
+    }),
+    listCronJobs: httpGet<HermesCronJobsResponse, void>('/api/agents/hermes/cron/jobs?limit=100', {
+      silentStatuses: [404],
+    }),
+    createCronJob: httpPost<HermesCronCliResponse, HermesCronJobInput>('/api/agents/hermes/cron/jobs'),
+    updateCronJob: httpPatch<HermesCronCliResponse, { id: string; patch: HermesCronJobEdit }>(
+      (p) => `/api/agents/hermes/cron/jobs/${encodeURIComponent(p.id)}`,
+      (p) => p.patch
+    ),
+    deleteCronJob: httpDelete<HermesCronCliResponse, { id: string }>(
+      (p) => `/api/agents/hermes/cron/jobs/${encodeURIComponent(p.id)}`
+    ),
+    runCronJob: httpPost<HermesCronCliResponse, { id: string }>(
+      (p) => `/api/agents/hermes/cron/jobs/${encodeURIComponent(p.id)}/run`
+    ),
+    pauseCronJob: httpPost<HermesCronCliResponse, { id: string }>(
+      (p) => `/api/agents/hermes/cron/jobs/${encodeURIComponent(p.id)}/pause`
+    ),
+    resumeCronJob: httpPost<HermesCronCliResponse, { id: string }>(
+      (p) => `/api/agents/hermes/cron/jobs/${encodeURIComponent(p.id)}/resume`
+    ),
+    listSkills: httpGet<HermesSkillsResponse, void>('/api/agents/hermes/skills', { silentStatuses: [404] }),
+    getSkill: httpGet<HermesSkillDetail, { id: string }>(
+      (p) => `/api/agents/hermes/skills?id=${encodeURIComponent(p.id)}`,
+      { silentStatuses: [404] }
+    ),
+    getCliConfig: httpGet<HermesCliConfigResponse, void>('/api/agents/hermes/cli-config', { silentStatuses: [404] }),
+    runCliCommand: httpPost<HermesCliRunResponse, { command_id: string }>('/api/agents/hermes/cli-config'),
+    getCapabilities: httpGet<HermesCapabilities, { conversation_id: string }>(
+      (p) => `/api/conversations/${p.conversation_id}/hermes/capabilities`,
+      { silentStatuses: [404] }
+    ),
+    compress: httpPost<void, { conversation_id: string; focus?: string }>(
+      (p) => `/api/conversations/${p.conversation_id}/hermes/compress`,
+      (p) => ({ focus: p.focus })
+    ),
+    retry: httpPost<void, { conversation_id: string }>((p) => `/api/conversations/${p.conversation_id}/hermes/retry`),
+    undo: httpPost<void, { conversation_id: string }>((p) => `/api/conversations/${p.conversation_id}/hermes/undo`),
+    forkSession: httpPost<{ session_id: string }, { conversation_id: string }>(
+      (p) => `/api/conversations/${p.conversation_id}/hermes/fork`
+    ),
+    listCheckpoints: httpGet<HermesCheckpoint[], { conversation_id: string }>(
+      (p) => `/api/conversations/${p.conversation_id}/hermes/checkpoints`,
+      { silentStatuses: [404] }
+    ),
+    restoreCheckpoint: httpPost<void, { conversation_id: string; checkpoint_id: string }>(
+      (p) => `/api/conversations/${p.conversation_id}/hermes/checkpoints/${encodeURIComponent(p.checkpoint_id)}/restore`
+    ),
+  },
 };
 
 export const openclawConversation = {

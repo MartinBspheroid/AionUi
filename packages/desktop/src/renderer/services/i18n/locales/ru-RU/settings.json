@@ -910,5 +910,213 @@
     "skills": "Навыки",
     "tools": "Инструменты"
   },
-  "capabilities": "Возможности"
+  "capabilities": "Возможности",
+  "hermes": {
+    "title": "Hermes",
+    "memory": {
+      "tabTitle": "Memory",
+      "title": "Hermes Memory",
+      "description": "Edit the MEMORY.md and USER.md files from the active Hermes profile.",
+      "memoryLabel": "MEMORY.md",
+      "userLabel": "USER.md",
+      "memoryPlaceholder": "Add long-term project and assistant memory...",
+      "userPlaceholder": "Add user preferences and profile details...",
+      "loadError": "Failed to load Hermes memory",
+      "saveError": "Failed to save Hermes memory",
+      "saveSuccess": "Hermes memory saved",
+      "saveUser": "Save USER.md",
+      "saveAgent": "Save MEMORY.md",
+      "lastModified": "Last modified",
+      "unsupportedTitle": "Hermes memory API unavailable",
+      "unsupportedDescription": "Aioncore must provide GET and PUT /api/agents/hermes/memory before this editor can load MEMORY.md and USER.md."
+    },
+    "sessions": {
+      "tabTitle": "Sessions",
+      "title": "Recent Hermes Sessions",
+      "description": "Browse read-only sessions found in the active Hermes profile.",
+      "loadError": "Failed to load Hermes sessions",
+      "empty": "No Hermes sessions found",
+      "unsupportedTitle": "Hermes sessions API unavailable",
+      "unsupportedDescription": "Aioncore must provide GET /api/agents/hermes/sessions before this browser can list sessions.",
+      "columns": {
+        "title": "Title",
+        "model": "Model",
+        "platform": "Platform",
+        "lastUpdated": "Last updated"
+      }
+    },
+    "skills": {
+      "tabTitle": "Skills",
+      "title": "Hermes Skills",
+      "description": "Browse installed Hermes skills from the active profile (read-only).",
+      "installed": "Installed skills",
+      "loadError": "Failed to load Hermes skills",
+      "empty": "No Hermes skills found",
+      "searchPlaceholder": "Search skills...",
+      "uncategorized": "Uncategorized",
+      "detailTitle": "Skill detail",
+      "selectPrompt": "Select a skill to view its SKILL.md content.",
+      "siblingFiles": "Bundled files",
+      "unsupportedTitle": "Hermes skills API unavailable",
+      "unsupportedDescription": "Aioncore must provide GET /api/agents/hermes/skills before this browser can list skills.",
+      "summary": {
+        "total": "Total skills",
+        "categories": "Categories",
+        "filtered": "Matching filter"
+      }
+    },
+    "cron": {
+      "tabTitle": "Tasks",
+      "title": "Hermes Cron Jobs",
+      "description": "Manage scheduled jobs in the active Hermes profile.",
+      "loadError": "Failed to load Hermes cron jobs",
+      "empty": "No Hermes cron jobs found",
+      "unsupportedTitle": "Hermes cron API unavailable",
+      "unsupportedDescription": "Aioncore must provide GET /api/agents/hermes/cron/jobs before this panel can list cron jobs.",
+      "summary": {
+        "total": "Total",
+        "active": "Active",
+        "paused": "Paused",
+        "errors": "Errors"
+      },
+      "status": {
+        "active": "Active",
+        "paused": "Paused",
+        "error": "Error"
+      },
+      "columns": {
+        "name": "Name",
+        "status": "Status",
+        "schedule": "Schedule",
+        "nextRun": "Next run",
+        "lastRun": "Last run",
+        "details": "Details",
+        "actions": "Actions"
+      },
+      "actions": {
+        "create": "New job",
+        "edit": "Edit",
+        "delete": "Delete",
+        "run": "Run now",
+        "pause": "Pause",
+        "resume": "Resume"
+      },
+      "confirmDelete": {
+        "title": "Delete scheduled job?",
+        "content": "Delete \"{{name}}\"? This cannot be undone."
+      },
+      "form": {
+        "createTitle": "Schedule a new job",
+        "editTitle": "Edit scheduled job",
+        "schedule": "Schedule",
+        "scheduleHint": "Cron expression or shortcut: 30m, every 2h, 0 9 * * *",
+        "scheduleRequired": "Schedule is required",
+        "name": "Name",
+        "namePlaceholder": "Daily digest",
+        "prompt": "Prompt",
+        "promptEdit": "Prompt (leave empty to keep existing)",
+        "promptEditHint": "Leave empty to keep the existing prompt unchanged.",
+        "skills": "Skills",
+        "deliver": "Deliver",
+        "repeat": "Repeat (times)",
+        "script": "Script",
+        "workdir": "Working directory",
+        "noAgent": "No agent (script only)",
+        "profile": "Profile",
+        "noChanges": "No changes to save"
+      },
+      "toasts": {
+        "created": "Cron job created",
+        "updated": "Cron job updated",
+        "deleted": "Cron job deleted",
+        "queuedRun": "Job queued for immediate run",
+        "paused": "Job paused",
+        "resumed": "Job resumed",
+        "saveFailed": "Failed to save cron job",
+        "runFailed": "Failed to run cron job",
+        "toggleFailed": "Failed to toggle cron job",
+        "deleteFailed": "Failed to delete cron job"
+      }
+    },
+    "cli": {
+      "tabTitle": "CLI & Config",
+      "title": "Hermes CLI & Config",
+      "description": "Inspect Hermes CLI paths, run diagnostic commands, and view config output.",
+      "loadError": "Failed to load Hermes CLI config",
+      "runError": "Failed to run CLI command",
+      "empty": "No CLI commands available",
+      "unsupportedTitle": "Hermes CLI API unavailable",
+      "unsupportedDescription": "Aioncore must provide GET /api/agents/hermes/cli-config before this panel can load CLI information.",
+      "commandsTitle": "Available commands",
+      "commandsDescription": "Read-only diagnostic commands from the allow-list.",
+      "statusOutput": "hermes status",
+      "configOutput": "hermes config",
+      "timedOut": "Timed out",
+      "exitCode": "Exit {{code}}",
+      "summary": {
+        "cli": "CLI path",
+        "home": "HERMES_HOME",
+        "config": "Config path",
+        "env": ".env path"
+      }
+    },
+    "logs": {
+      "tabTitle": "Logs",
+      "title": "Application Logs",
+      "description": "Live stream of application and agent log entries.",
+      "empty": "No log entries yet — logs will appear here as the app runs.",
+      "clear": "Clear",
+      "pause": "Pause",
+      "resume": "Resume",
+      "copy": "Copy all",
+      "copied": "Copied",
+      "filter": "Filter by tag or message...",
+      "levels": {
+        "all": "All levels",
+        "error": "Errors",
+        "warn": "Warnings",
+        "info": "Info",
+        "debug": "Debug"
+      },
+      "level": {
+        "log": "LOG",
+        "info": "INFO",
+        "warn": "WARN",
+        "error": "ERR",
+        "debug": "DBG"
+      }
+    },
+    "insights": {
+      "tabTitle": "Insights",
+      "title": "Usage Insights",
+      "description": "Token usage and estimated cost over the last 30 days.",
+      "totalTokens": "Total tokens",
+      "totalCost": "Est. cost (USD)",
+      "inputTokens": "Input tokens",
+      "outputTokens": "Output tokens",
+      "topModels": "Top models",
+      "daily": "Daily usage",
+      "noData": "No usage data available yet.",
+      "model": "Model",
+      "day": "Day",
+      "byModel": "By model",
+      "refreshing": "Refreshing...",
+      "refresh": "Refresh"
+    },
+    "gateway": {
+      "tabTitle": "Gateway",
+      "title": "Gateway Status",
+      "description": "Live status of the Hermes gateway and connected messaging platforms.",
+      "healthy": "Healthy",
+      "unhealthy": "Unhealthy",
+      "unknown": "Unknown",
+      "latency": "Latency",
+      "noAgents": "No agents detected",
+      "refresh": "Refresh",
+      "platform": "Platform",
+      "status": "Status",
+      "lastCheck": "Last checked",
+      "checkFailed": "Health check failed"
+    }
+  }
 }
