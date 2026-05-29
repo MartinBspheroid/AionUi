@@ -79,6 +79,16 @@ repos:
         files: ^packages/desktop/src/renderer/services/i18n/locales/
         pass_filenames: false
 
+  # File-size guard (warn >600 lines, fail >1000 lines) — prevents god files
+  - repo: local
+    hooks:
+      - id: file-size-check
+        name: File Size Check
+        entry: node scripts/check-file-size.js
+        language: system
+        files: ^packages/(desktop|web-host|web-cli)/src/.*\.(ts|tsx)$
+        pass_filenames: false
+
   # Forbid direct `acpConversation.getAvailableAgents.invoke` — route all
   # /api/agents reads through `useAgents()` / `getAgents()` so every call site
   # shares the SWR cache (DETECTED_AGENTS_SWR_KEY).
