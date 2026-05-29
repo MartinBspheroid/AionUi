@@ -3,6 +3,10 @@
  * No Electron imports — safe to use in both Electron main process and WebUI mode.
  */
 
+import { createLogger } from '@/common/log';
+
+const log = createLogger('registry');
+
 type WebSocketBroadcastFn = (name: string, data: unknown) => void;
 
 const webSocketBroadcasters: WebSocketBroadcastFn[] = [];
@@ -29,7 +33,7 @@ export function broadcastToAll(name: string, data: unknown): void {
     try {
       broadcast(name, data);
     } catch (error) {
-      console.error('[registry] WebSocket broadcast error:', error);
+      log.error('WebSocket broadcast error:', error);
     }
   }
 }

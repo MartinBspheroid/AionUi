@@ -13,6 +13,9 @@ import {
   ensureAndSwitch,
   type LocaleData,
 } from '@/common/config/i18n';
+import { createLogger } from '@/common/log';
+
+const log = createLogger('Main Process');
 
 // Static imports – Vite bundles these into the main-process output so they
 // work correctly in both development and production (no fs.readFile needed).
@@ -63,7 +66,7 @@ export const i18nReady = (async (): Promise<void> => {
     await ensureAndSwitch(i18n, language, getLocaleModules);
   }
 })().catch((error) => {
-  console.error('[Main Process] Failed to initialize i18n:', error);
+  log.error('Failed to initialize i18n:', error);
 });
 
 /**

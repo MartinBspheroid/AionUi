@@ -18,6 +18,9 @@ import {
   unhookPetConfirm,
 } from './petConfirmManager';
 import type { PetSize, PetState } from './petTypes';
+import { createLogger } from '@/common/log';
+
+const log = createLogger('Pet');
 
 /**
  * Check whether the current environment can support desktop pet windows.
@@ -94,7 +97,7 @@ const RESTORABLE_STATES: ReadonlySet<PetState> = new Set<PetState>(['thinking', 
  */
 export function createPetWindow(): void {
   if (!isPetSupported()) {
-    console.warn('[Pet] Desktop pet is not supported in headless mode');
+    log.warn('Desktop pet is not supported in headless mode');
     return;
   }
 
@@ -206,7 +209,7 @@ export function createPetWindow(): void {
     destroyPetWindow();
   });
 
-  console.log('[Pet] Pet windows created');
+  log.info('Pet windows created');
 }
 
 /**
@@ -247,7 +250,7 @@ export function destroyPetWindow(): void {
   }
   petWindow = null;
 
-  console.log('[Pet] Pet windows destroyed');
+  log.info('Pet windows destroyed');
 }
 
 export function showPetWindow(): void {
@@ -343,17 +346,17 @@ function loadContent(): void {
 
   if (!app.isPackaged && rendererUrl) {
     petWindow.loadURL(`${rendererUrl}/pet/pet.html`).catch((error) => {
-      console.error('[Pet] loadURL failed for pet window:', error);
+      log.error('loadURL failed for pet window:', error);
     });
     petHitWindow.loadURL(`${rendererUrl}/pet/pet-hit.html`).catch((error) => {
-      console.error('[Pet] loadURL failed for pet-hit window:', error);
+      log.error('loadURL failed for pet-hit window:', error);
     });
   } else {
     petWindow.loadFile(path.join(RENDERER_DIR, 'pet.html')).catch((error) => {
-      console.error('[Pet] loadFile failed for pet window:', error);
+      log.error('loadFile failed for pet window:', error);
     });
     petHitWindow.loadFile(path.join(RENDERER_DIR, 'pet-hit.html')).catch((error) => {
-      console.error('[Pet] loadFile failed for pet-hit window:', error);
+      log.error('loadFile failed for pet-hit window:', error);
     });
   }
 }
@@ -404,7 +407,7 @@ function registerIpcHandlers(): void {
     }, DRAG_TICK_MS);
 
     dragWatchdog = setTimeout(() => {
-      console.warn('[Pet] drag-end not received in', DRAG_WATCHDOG_MS, 'ms — force-ending drag');
+      log.warn('drag-end not received in', DRAG_WATCHDOG_MS, 'ms — force-ending drag');
       endDrag();
       // The renderer almost certainly has stale drag state too (since we never
       // got pointerup). Reset it so the user can start a fresh drag.

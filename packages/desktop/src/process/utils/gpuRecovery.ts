@@ -7,6 +7,9 @@
 import { app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
+import { createLogger } from '@/common/log';
+
+const log = createLogger('GPU');
 
 // 持久化文件：userData/gpu.config.json
 const GPU_CONFIG_FILE = 'gpu.config.json';
@@ -47,7 +50,7 @@ function writeConfig(cfg: GpuConfig): void {
   try {
     fs.writeFileSync(getConfigPath(), JSON.stringify(cfg, null, 2), 'utf-8');
   } catch (err) {
-    console.warn('[GPU] Failed to write gpu config:', err);
+    log.warn('Failed to write gpu config:', err);
   }
 }
 
@@ -60,7 +63,7 @@ export function applyGpuRecoveryFlags(): void {
 
   if (cfg.userOverride === 'force-off') {
     app.disableHardwareAcceleration();
-    console.log('[GPU] hardware acceleration disabled (user override)');
+    log.info('hardware acceleration disabled (user override)');
     return;
   }
   if (cfg.userOverride === 'force-on') {
@@ -71,14 +74,14 @@ export function applyGpuRecoveryFlags(): void {
   if (cfg.lastCrashAt && Date.now() - cfg.lastCrashAt > GPU_CRASH_RESET_MS) {
     if (cfg.disableHardwareAcceleration || (cfg.crashCount ?? 0) > 0) {
       writeConfig({ ...cfg, crashCount: 0, disableHardwareAcceleration: false });
-      console.log('[GPU] crash counter reset (no recent GPU crashes)');
+      log.info('crash counter reset (no recent GPU crashes)');
     }
     return;
   }
 
   if (cfg.disableHardwareAcceleration) {
     app.disableHardwareAcceleration();
-    console.log(`[GPU] hardware acceleration disabled (auto, after ${cfg.crashCount ?? 0} consecutive GPU crashes)`);
+    log.info(`hardware acceleration disabled (auto, after ${cfg.crashCount ?? 0} consecutive GPU crashes)`);
   }
 }
 
@@ -143,14 +146,12 @@ export function installGpuCrashHandler(): void {
 
     if (nextCount >= GPU_CRASH_THRESHOLD && cfg.userOverride !== 'force-on') {
       next.disableHardwareAcceleration = true;
-      console.warn(
-        `[GPU] crashed ${nextCount} times (reason=${details.reason}, exitCode=${details.exitCode}); ` +
+      log.warn(
+        `crashed ${nextCount} times (reason=${details.reason}, exitCode=${details.exitCode}); ` +
           'hardware acceleration will be disabled on next launch.'
       );
     } else {
-      console.warn(
-        `[GPU] crashed ${nextCount}/${GPU_CRASH_THRESHOLD} (reason=${details.reason}, exitCode=${details.exitCode})`
-      );
+      log.warn(`crashed ${nextCount}/${GPU_CRASH_THRESHOLD} (reason=${details.reason}, exitCode=${details.exitCode})`);
     }
 
     writeConfig(next);

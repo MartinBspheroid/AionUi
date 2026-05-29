@@ -13,6 +13,13 @@ import { getCdpStatus, updateCdpConfig } from '@process/utils/configureChromium'
 import { getGpuStatus, setGpuUserOverride } from '@process/utils/gpuRecovery';
 import { initApplicationBridgeCore } from './applicationBridgeCore';
 import type { IStartOnBootStatus } from '@/common/adapter/ipcBridge';
+import { createLogger } from '@/common/log';
+
+const log = createLogger('ApplicationBridge');
+
+function errText(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
 
 let mainWindowRef: BrowserWindow | null = null;
 
@@ -152,7 +159,7 @@ export function initApplicationBridge(): void {
     try {
       await ProcessConfig.set('ui.zoomFactor', updatedFactor);
     } catch (error) {
-      console.error('[ApplicationBridge] Failed to persist zoom factor:', error);
+      log.error('Failed to persist zoom factor:', error);
     }
     return updatedFactor;
   });
@@ -164,7 +171,7 @@ export function initApplicationBridge(): void {
       // If port is set, CDP is considered enabled (verification is optional)
       return { success: true, data: status };
     } catch (e) {
-      return { success: false, msg: e.message || e.toString() };
+      return { success: false, msg: errText(e) };
     }
   });
 
@@ -173,7 +180,7 @@ export function initApplicationBridge(): void {
       const updatedConfig = updateCdpConfig(config);
       return { success: true, data: updatedConfig };
     } catch (e) {
-      return { success: false, msg: e.message || e.toString() };
+      return { success: false, msg: errText(e) };
     }
   });
 
@@ -181,7 +188,7 @@ export function initApplicationBridge(): void {
     try {
       return { success: true, data: getStartOnBootStatus() };
     } catch (e) {
-      return { success: false, msg: e.message || e.toString() };
+      return { success: false, msg: errText(e) };
     }
   });
 
@@ -193,7 +200,7 @@ export function initApplicationBridge(): void {
       }
       return { success: true, data: status };
     } catch (e) {
-      return { success: false, msg: e.message || e.toString() };
+      return { success: false, msg: errText(e) };
     }
   });
 
@@ -201,7 +208,7 @@ export function initApplicationBridge(): void {
     try {
       return { success: true, data: getGpuStatus() };
     } catch (e) {
-      return { success: false, msg: e.message || e.toString() };
+      return { success: false, msg: errText(e) };
     }
   });
 
@@ -209,7 +216,7 @@ export function initApplicationBridge(): void {
     try {
       return { success: true, data: setGpuUserOverride(override) };
     } catch (e) {
-      return { success: false, msg: e.message || e.toString() };
+      return { success: false, msg: errText(e) };
     }
   });
 }

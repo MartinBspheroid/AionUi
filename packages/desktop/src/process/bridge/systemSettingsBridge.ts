@@ -17,6 +17,9 @@ import { getPlatformServices } from '@/common/platform';
 import { ProcessConfig } from '@process/utils/initStorage';
 import { changeLanguage } from '@process/services/i18n';
 import type { PetSize } from '@process/pet/petTypes';
+import { createLogger } from '@/common/log';
+
+const log = createLogger('SystemSettings');
 
 // Keep-awake power blocker state
 let _keepAwakeBlockerId: number | null = null;
@@ -57,7 +60,7 @@ export function initSystemSettingsBridge(): void {
 
     // Update main process i18n (non-blocking – don't let a hang here block the provider)
     changeLanguage(language).catch((error) => {
-      console.error('[SystemSettings] Main process changeLanguage failed:', error);
+      log.error('Main process changeLanguage failed:', error);
     });
   });
 
@@ -66,11 +69,11 @@ export function initSystemSettingsBridge(): void {
     .then((enabled) => {
       if (enabled) {
         _keepAwakeBlockerId = getPlatformServices().power.preventDisplaySleep();
-        console.log('[SystemSettings] Keep-awake restored on startup');
+        log.info('Keep-awake restored on startup');
       }
     })
     .catch((err) => {
-      console.warn('[SystemSettings] Failed to restore keep-awake:', err);
+      log.warn('Failed to restore keep-awake:', err);
     });
 
   // Desktop pet settings
@@ -82,7 +85,7 @@ export function initSystemSettingsBridge(): void {
   ipcBridge.systemSettings.setPetEnabled.provider(async ({ enabled }) => {
     const { createPetWindow, destroyPetWindow, isPetSupported } = await import('@process/pet/petManager');
     if (enabled && !isPetSupported()) {
-      console.warn('[SystemSettings] Desktop pet is not supported in headless mode');
+      log.warn('Desktop pet is not supported in headless mode');
       return;
     }
     await ProcessConfig.set('pet.enabled', enabled);

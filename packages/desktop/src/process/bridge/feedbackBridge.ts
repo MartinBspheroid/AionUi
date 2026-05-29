@@ -12,6 +12,9 @@
 import { ipcMain, app, BrowserWindow } from 'electron';
 import * as path from 'path';
 import { collectFeedbackLogAttachment } from '../feedback/logs';
+import { createLogger } from '@/common/log';
+
+const log = createLogger('feedbackBridge');
 
 ipcMain.handle('feedback:collect-logs', async () => {
   try {
@@ -31,7 +34,7 @@ ipcMain.handle('feedback:collect-logs', async () => {
       data: Array.from(attachment.data),
     };
   } catch (error) {
-    console.error('[feedbackBridge] Failed to collect logs:', error);
+    log.error('Failed to collect logs:', error);
     return null;
   }
 });
@@ -55,7 +58,7 @@ ipcMain.handle('feedback:capture-screenshot', async (event) => {
       data: Array.from(png),
     };
   } catch (error) {
-    console.error('[feedbackBridge] Failed to capture screenshot:', error);
+    log.error('Failed to capture screenshot:', error);
     return null;
   }
 });

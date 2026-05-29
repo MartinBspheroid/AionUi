@@ -48,7 +48,7 @@ describe('configMigration', () => {
       await migrateConfigStorage(configFile);
 
       expect(httpRequest).not.toHaveBeenCalledWith('PUT', expect.anything(), expect.anything());
-      expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('skipped'));
+      expect(infoSpy).toHaveBeenCalledWith('[Migration]', expect.stringContaining('skipped'));
       expect(configFile.set).not.toHaveBeenCalled();
     });
 
@@ -174,7 +174,10 @@ describe('configMigration', () => {
       // completion flag is written.
       expect(configFile.store.get('model.config')).toBe(legacyProviders);
       expect(configFile.store.get('migration.providersMigrated_v1')).toBe(true);
-      expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('already exist in backend'), 1);
+      expect(infoSpy).toHaveBeenCalledWith(
+        '[Migration]',
+        expect.stringContaining('all 1 legacy providers already exist in backend')
+      );
     });
 
     it('migrates 4 legacy providers with field mapping', async () => {
@@ -310,7 +313,7 @@ describe('configMigration', () => {
 
       await migrateProviders(configFile);
 
-      expect(warnSpy).toHaveBeenCalledWith('[Migration] failed to create provider %s:', 'p2', expect.any(Error));
+      expect(warnSpy).toHaveBeenCalledWith('[Migration]', 'failed to create provider p2:', expect.any(Error));
       // Partial failure: legacy field untouched AND flag must remain unset so
       // the next launch retries the still-missing row.
       expect(configFile.store.get('model.config')).toBe(legacyProviders);

@@ -13,7 +13,10 @@
 
 import { screen } from 'electron';
 import type { BrowserWindow } from 'electron';
+import { createLogger } from '@/common/log';
 import { trackPersistedWrite } from './persistOnQuit';
+
+const log = createLogger('AionUi');
 
 export type WindowBounds = {
   x?: number;
@@ -102,7 +105,7 @@ export const attachWindowBoundsPersistence = (
     // boot-time snapshot.
     cachedBounds = bounds;
     const op = Promise.resolve(persist(bounds)).catch((error) => {
-      console.error('[AionUi] Failed to persist window bounds:', error);
+      log.error('Failed to persist window bounds:', error);
     });
     trackPersistedWrite(op);
   };

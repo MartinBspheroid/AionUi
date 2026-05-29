@@ -13,7 +13,10 @@ import {
 } from '@/common/electronSafe';
 import * as path from 'path';
 import { ipcBridge } from '@/common';
+import { createLogger } from '@/common/log';
 import i18n from '@process/services/i18n';
+
+const log = createLogger('Tray');
 
 let tray: TrayInstance | null = null;
 let closeToTrayEnabled = false;
@@ -42,8 +45,8 @@ export const setIsQuitting = (quitting: boolean): void => {
  * macOS uses Template image to adapt to dark/light menu bar.
  */
 const getTrayIcon = (): Electron.NativeImage => {
-  const resourcesPath = app.isPackaged ? process.resourcesPath : path.join(process.cwd(), 'resources');
-  const icon = nativeImage.createFromPath(path.join(resourcesPath, 'app.png'));
+  const resourcesPath = app!.isPackaged ? process.resourcesPath : path.join(process.cwd(), 'resources');
+  const icon = nativeImage!.createFromPath(path.join(resourcesPath, 'app.png'));
   if (process.platform === 'darwin') {
     return icon.resize({ width: 16, height: 16 });
   }
@@ -73,8 +76,8 @@ const buildTrayContextMenu = async (): Promise<Electron.Menu> => {
 
   const showAndFocus = () => {
     if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-      if (process.platform === 'darwin' && app.dock) {
-        void app.dock.show();
+      if (process.platform === 'darwin' && app!.dock) {
+        void app!.dock.show();
       }
       if (mainWindowRef.isMinimized()) {
         mainWindowRef.restore();
@@ -87,8 +90,8 @@ const buildTrayContextMenu = async (): Promise<Electron.Menu> => {
   const hideToTray = () => {
     if (mainWindowRef && !mainWindowRef.isDestroyed()) {
       mainWindowRef.hide();
-      if (process.platform === 'darwin' && app.dock) {
-        void app.dock.hide();
+      if (process.platform === 'darwin' && app!.dock) {
+        void app!.dock.hide();
       }
     }
   };
@@ -217,8 +220,8 @@ const buildTrayContextMenu = async (): Promise<Electron.Menu> => {
     label: i18n.t('common.tray.restart'),
     click: () => {
       isQuitting = true;
-      app.relaunch();
-      app.exit(0);
+      app!.relaunch();
+      app!.exit(0);
     },
   });
   template.push({ type: 'separator' });
@@ -226,11 +229,11 @@ const buildTrayContextMenu = async (): Promise<Electron.Menu> => {
     label: i18n.t('common.tray.quit'),
     click: () => {
       isQuitting = true;
-      app.quit();
+      app!.quit();
     },
   });
 
-  return Menu.buildFromTemplate(template);
+  return Menu!.buildFromTemplate(template);
 };
 
 /**
@@ -242,14 +245,14 @@ export const createOrUpdateTray = (): void => {
   }
   try {
     const icon = getTrayIcon();
-    tray = new Tray(icon);
+    tray = new Tray!(icon);
     tray.setToolTip('AionUi');
     void buildTrayContextMenu().then((menu) => tray?.setContextMenu(menu));
 
     tray.on('double-click', () => {
       if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-        if (process.platform === 'darwin' && app.dock) {
-          void app.dock.show();
+        if (process.platform === 'darwin' && app!.dock) {
+          void app!.dock.show();
         }
         if (mainWindowRef.isMinimized()) {
           mainWindowRef.restore();
@@ -267,7 +270,7 @@ export const createOrUpdateTray = (): void => {
 
     void fetchActiveCountAndMaybeRebuild();
   } catch (err) {
-    console.error('[Tray] Failed to create tray:', err);
+    log.error('Failed to create tray:', err);
   }
 };
 

@@ -5,8 +5,12 @@
  */
 
 import { bridge, logger } from '@office-ai/platform';
+import { createLogger } from '@/common/log';
 import { WEBUI_DEFAULT_PORT } from '@/common/config/constants';
 import type { ElectronBridgeAPI } from '@/common/types/platform/electron';
+
+const log = createLogger('browser');
+const webSocketLog = createLogger('WebSocket');
 
 interface CustomWindow extends Window {
   electronAPI?: ElectronBridgeAPI;
@@ -24,7 +28,7 @@ if (win.electronAPI) {
   // Electron 环境 - 使用 IPC 通信
   bridge.adapter({
     emit(name, data) {
-      return win.electronAPI.emit(name, data);
+      return win.electronAPI?.emit(name, data);
     },
     on(emitter) {
       win.electronAPI?.on((event) => {
@@ -33,7 +37,7 @@ if (win.electronAPI) {
           const { name, data } = JSON.parse(value);
           emitter.emit(name, data);
         } catch (e) {
-          console.warn('JSON parsing error:', e);
+          log.warn('JSON parsing error:', e);
         }
       });
     },
@@ -130,7 +134,7 @@ if (win.electronAPI) {
         // 处理认证过期 - 停止重连并跳转到登录页
         // Handle auth expiration - stop reconnecting and redirect to login
         if (payload.name === 'auth-expired') {
-          console.warn('[WebSocket] Authentication expired, stopping reconnection');
+          webSocketLog.warn('Authentication expired, stopping reconnection');
           shouldReconnect = false;
 
           // 清除所有待执行的重连定时器
@@ -180,7 +184,7 @@ if (win.electronAPI) {
         return; // Already handled by auth-expired message handler
       }
       if (event.code === 1008) {
-        console.warn('[WebSocket] Connection rejected by server (policy violation), redirecting to login');
+        webSocketLog.warn('Connection rejected by server (policy violation), redirecting to login');
         shouldReconnect = false;
         if (reconnectTimer !== null) {
           window.clearTimeout(reconnectTimer);
@@ -255,8 +259,8 @@ if (win.electronAPI) {
 }
 
 logger.provider({
-  log(log) {
-    console.log('process.log', log.type, ...log.logs);
+  log(logEntry) {
+    log.info('process.log', logEntry.type, ...logEntry.logs);
   },
   path() {
     return Promise.resolve('');

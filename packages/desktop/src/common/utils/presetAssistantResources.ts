@@ -5,6 +5,9 @@
  */
 
 import { ipcBridge } from '@/common';
+import { createLogger } from '@/common/log';
+
+const log = createLogger('presetAssistantResources');
 
 /**
  * Thin pass-through over `ipcBridge.fs.readAssistant{Rule,Skill}`. The backend
@@ -60,7 +63,7 @@ const defaultDeps: PresetAssistantResourceDeps = {
     }
   },
   warn: (message, error) => {
-    console.warn(message, error);
+    log.warn(message, error);
   },
 };
 

@@ -18,6 +18,9 @@ import { ClientFactory, type RotatingClient } from '@/common/api/ClientFactory';
 import type { TProviderWithModel } from '@/common/config/storage';
 import type { UnifiedChatCompletionResponse } from '@/common/api/RotatingApiClient';
 import { IMAGE_EXTENSIONS, MIME_TYPE_MAP, MIME_TO_EXT_MAP, DEFAULT_IMAGE_EXTENSION } from '@/common/config/constants';
+import { createLogger } from '@/common/log';
+
+const log = createLogger('ImageGen');
 
 const API_TIMEOUT_MS = 120000; // 2 minutes for image generation API calls
 
@@ -37,7 +40,7 @@ export function safeJsonParse<T = unknown>(jsonString: string, fallbackValue: T)
       const repairedJson = jsonrepair(jsonString);
       return JSON.parse(repairedJson) as T;
     } catch (_repairError) {
-      console.warn('[ImageGen] JSON parse failed:', jsonString.substring(0, 50));
+      log.warn('JSON parse failed:', jsonString.substring(0, 50));
       return fallbackValue;
     }
   }
@@ -92,7 +95,7 @@ export async function saveGeneratedImage(base64Data: string, workspaceDir: strin
     await fs.promises.writeFile(file_path, imageBuffer);
     return file_path;
   } catch (error) {
-    console.error('[ImageGen] Failed to save image file:', error);
+    log.error('Failed to save image file:', error);
     throw new Error(`Failed to save image: ${error instanceof Error ? error.message : String(error)}`, {
       cause: error,
     });
@@ -189,7 +192,7 @@ export async function executeImageGeneration(
     let imageUris: string[] = [];
     if (params.image_uris) {
       if (typeof params.image_uris === 'string') {
-        const parsed = safeJsonParse<string[]>(params.image_uris, null);
+        const parsed = safeJsonParse<string[] | null>(params.image_uris, null);
         imageUris = Array.isArray(parsed) ? parsed : [params.image_uris];
       } else if (Array.isArray(params.image_uris)) {
         imageUris = params.image_uris;
@@ -242,10 +245,10 @@ export async function executeImageGeneration(
       rotatingOptions: { maxRetries: 3, retryDelay: 1000 },
     });
 
-    const completion: UnifiedChatCompletionResponse = await rotatingClient.createChatCompletion(
+    const completion = (await rotatingClient.createChatCompletion(
       { model: provider.use_model, messages: messages as any },
       { signal, timeout: API_TIMEOUT_MS }
-    );
+    )) as UnifiedChatCompletionResponse;
 
     const choice = completion.choices[0];
     if (!choice) {
@@ -281,7 +284,7 @@ export async function executeImageGeneration(
                 image_url: { url: `data:${mimeType};base64,${base64Data}` },
               });
             } catch (_fileError) {
-              console.warn(`[ImageGen] Could not load image file: ${file_path}`);
+              log.warn(`Could not load image file: ${file_path}`);
             }
           }
           if (processedImages.length > 0) {
@@ -325,7 +328,7 @@ export async function executeImageGeneration(
       return { success: false, text: 'Image generation was cancelled.', error: 'cancelled' };
     }
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`[ImageGen] API call failed:`, error);
+    log.error(`API call failed:`, error);
     return { success: false, text: `Error generating image: ${errorMessage}`, error: errorMessage };
   }
 }

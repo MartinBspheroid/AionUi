@@ -16,6 +16,9 @@ import { z } from 'zod';
 import { BUILTIN_IMAGE_GEN_ID, BUILTIN_IMAGE_GEN_NAME } from './constants';
 import { executeImageGeneration } from '@/common/chat/imageGenCore';
 import type { TProviderWithModel } from '@/common/config/storage';
+import { createLogger } from '@/common/log';
+
+const log = createLogger('ImageGenMCP');
 
 // Read provider config from environment variables
 function getProviderFromEnv(): TProviderWithModel | null {
@@ -131,6 +134,6 @@ IMPORTANT: When user provides multiple images, ALWAYS pass ALL images to the ima
 }
 
 main().catch((error) => {
-  console.error('[ImageGenMCP] Fatal error:', error);
+  log.error('Fatal error:', error);
   process.exit(1);
 });

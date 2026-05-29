@@ -27,7 +27,8 @@
       }
     ],
     "no-floating-promises": "error",
-    "no-await-thenable": "error"
+    "no-await-thenable": "error",
+    "no-console": "warn"
   },
   "overrides": [
     {
@@ -49,6 +50,30 @@
       "rules": {
         "no-floating-promises": "off",
         "no-await-thenable": "off"
+      }
+    },
+    {
+      "files": [
+        "packages/desktop/src/process/**/*.ts",
+        "packages/desktop/src/process/**/*.tsx",
+        "packages/desktop/src/common/**/*.ts",
+        "packages/desktop/src/common/**/*.tsx"
+      ],
+      "rules": {
+        "no-console": "error"
+      }
+    },
+    {
+      "files": [
+        "packages/desktop/src/common/log/index.ts",
+        "packages/desktop/src/process/utils/configureConsoleLog.ts",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.bun.test.ts",
+        "**/*.spec.ts"
+      ],
+      "rules": {
+        "no-console": "off"
       }
     }
   ],
