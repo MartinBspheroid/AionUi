@@ -35,12 +35,14 @@ vi.mock('@/renderer/hooks/useMessage', () => ({
   useMessage: () => [{ success: vi.fn(), error: vi.fn() }, null],
 }));
 
-vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
+const navigateSpy = vi.fn();
+vi.mock('react-router-dom', () => ({ useNavigate: () => navigateSpy }));
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 
-import { render } from '@testing-library/react';
+import { fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
+import { ipcBridge } from '@/common';
 import HermesActionStrip from '@/renderer/components/hermes/HermesActionStrip';
 
 const baseProps = {
@@ -54,6 +56,9 @@ describe('HermesActionStrip', () => {
   beforeEach(() => {
     capsState.capabilities = null;
     capsState.unsupported = false;
+    navigateSpy.mockReset();
+    vi.mocked(ipcBridge.acpConversation.hermesExt.retry.invoke).mockClear();
+    vi.mocked(ipcBridge.acpConversation.hermesExt.forkSession.invoke).mockClear();
   });
 
   it('renders nothing when capabilities are null (not Hermes)', () => {
@@ -112,5 +117,36 @@ describe('HermesActionStrip', () => {
     // The context bar div should be present
     expect(container.querySelector('div')).toBeTruthy();
     expect(container.textContent).not.toBe('');
+  });
+
+  describe('action invocations', () => {
+    it('clicking Retry invokes retry IPC with the conversation id', async () => {
+      capsState.capabilities = { retry: true };
+      const { getByText } = render(<HermesActionStrip {...baseProps} />);
+
+      fireEvent.click(getByText('settings.hermes.conversationActions.retry'));
+
+      await waitFor(() => {
+        expect(ipcBridge.acpConversation.hermesExt.retry.invoke).toHaveBeenCalledWith({
+          conversation_id: 'conv-1',
+        });
+      });
+    });
+
+    it('clicking Fork invokes forkSession IPC and navigates to the new session', async () => {
+      capsState.capabilities = { forkSession: true };
+      const { getByText } = render(<HermesActionStrip {...baseProps} />);
+
+      fireEvent.click(getByText('settings.hermes.conversationActions.fork'));
+
+      await waitFor(() => {
+        expect(ipcBridge.acpConversation.hermesExt.forkSession.invoke).toHaveBeenCalledWith({
+          conversation_id: 'conv-1',
+        });
+      });
+      await waitFor(() => {
+        expect(navigateSpy).toHaveBeenCalledWith('/conversation/new-id');
+      });
+    });
   });
 });

@@ -31,19 +31,16 @@ describe('formatRelativeTime', () => {
     expect(formatRelativeTime(pastMs(30_000))).toBe('just now');
   });
 
-  it('returns "in X minutes" for future minutes', () => {
-    const result = formatRelativeTime(futureMs(5 * 60_000));
-    expect(result).toMatch(/^in \d+ minutes?$/);
+  it('returns the exact "in 5 minutes" for 5 future minutes', () => {
+    expect(formatRelativeTime(futureMs(5 * 60_000))).toBe('in 5 minutes');
   });
 
-  it('returns "X minutes ago" for past minutes', () => {
-    const result = formatRelativeTime(pastMs(10 * 60_000));
-    expect(result).toMatch(/^\d+ minutes? ago$/);
+  it('returns the exact "10 minutes ago" for 10 past minutes', () => {
+    expect(formatRelativeTime(pastMs(10 * 60_000))).toBe('10 minutes ago');
   });
 
-  it('returns "in X hours" for future hours', () => {
-    const result = formatRelativeTime(futureMs(3 * 3_600_000));
-    expect(result).toMatch(/^in \d+ hours?$/);
+  it('returns the exact "in 3 hours" for 3 future hours', () => {
+    expect(formatRelativeTime(futureMs(3 * 3_600_000))).toBe('in 3 hours');
   });
 
   it('returns "tomorrow" for 24h in the future', () => {
@@ -54,9 +51,8 @@ describe('formatRelativeTime', () => {
     expect(formatRelativeTime(pastMs(24 * 3_600_000 + 60_000))).toBe('yesterday');
   });
 
-  it('returns "in X days" for several days in the future', () => {
-    const result = formatRelativeTime(futureMs(5 * 86_400_000));
-    expect(result).toMatch(/^in \d+ days$/);
+  it('returns the exact "in 5 days" for 5 future days', () => {
+    expect(formatRelativeTime(futureMs(5 * 86_400_000))).toBe('in 5 days');
   });
 
   it('falls back to locale string for > 7 days', () => {

@@ -39,7 +39,7 @@ const HermesMemoryQuickSave: React.FC<Props> = ({ conversation_id: _conversation
     setLoading(true);
     try {
       const current = await ipcBridge.acpConversation.hermesExt.getMemory.invoke();
-      const separator = current.memory.trimEnd() ? '\n\n' : '';
+      const separator = current.memory.trim() ? '\n\n' : '';
       const updated = current.memory + separator + trimmed;
       await ipcBridge.acpConversation.hermesExt.setMemory.invoke({ memory: updated });
       message.success(t('settings.hermes.conversationActions.memorySaveSuccess'));
@@ -60,7 +60,7 @@ const HermesMemoryQuickSave: React.FC<Props> = ({ conversation_id: _conversation
   const popoverContent = (
     <div className='flex flex-col gap-2' style={{ width: 260 }}>
       {unavailable ? (
-        <span className='text-color-3 text-sm'>Hermes memory not available</span>
+        <span className='text-color-3 text-sm'>{t('settings.hermes.conversationActions.memoryUnavailable')}</span>
       ) : (
         <>
           <TextArea

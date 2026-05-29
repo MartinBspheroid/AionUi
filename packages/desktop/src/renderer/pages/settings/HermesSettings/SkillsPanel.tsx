@@ -66,18 +66,25 @@ type SkillListItemProps = {
 };
 
 const SkillListItem: React.FC<SkillListItemProps> = ({ skill, selected, onSelect }) => (
-  <button
-    type='button'
+  <div
+    role='button'
+    tabIndex={0}
     className={`w-full text-left px-12px py-8px rd-6px cursor-pointer border transition-colors outline-none ${
       selected
         ? 'bg-primary-1 border-primary-4 text-t-primary'
         : 'bg-transparent border-transparent hover:bg-fill-1 text-t-primary'
     }`}
     onClick={() => onSelect(skill.id)}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onSelect(skill.id);
+      }
+    }}
   >
     <div className='text-13px font-500 truncate'>{skill.name}</div>
     {skill.description && <div className='text-11px text-t-secondary truncate mt-1px'>{skill.description}</div>}
-  </button>
+  </div>
 );
 
 type SkillDetailPaneProps = {

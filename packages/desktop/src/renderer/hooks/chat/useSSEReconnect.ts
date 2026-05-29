@@ -27,6 +27,12 @@ export type UseSSEReconnectReturn = {
   /** Number of retry attempts made so far. */
   attempt: number;
   /**
+   * Delay in milliseconds scheduled before the next retry, computed via the
+   * exponential-backoff formula `min(baseDelayMs * 2^attempt, maxDelayMs)`.
+   * 0 when no retry is pending.
+   */
+  nextRetryMs: number;
+  /**
    * Call when a connection attempt succeeds. Transitions to 'connected' and
    * resets the attempt counter.
    */
@@ -70,6 +76,7 @@ export function useSSEReconnect(onReconnect: () => void, options?: UseSSEReconne
 
   const [state, setState] = useState<SSEReconnectState>('idle');
   const [attempt, setAttempt] = useState(0);
+  const [nextRetryMs, setNextRetryMs] = useState(0);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptRef = useRef(0);
@@ -91,6 +98,7 @@ export function useSSEReconnect(onReconnect: () => void, options?: UseSSEReconne
     clearTimer();
     attemptRef.current = 0;
     setAttempt(0);
+    setNextRetryMs(0);
     setState('idle');
   }, [clearTimer]);
 
@@ -98,6 +106,7 @@ export function useSSEReconnect(onReconnect: () => void, options?: UseSSEReconne
     clearTimer();
     attemptRef.current = 0;
     setAttempt(0);
+    setNextRetryMs(0);
     setState('connected');
   }, [clearTimer]);
 
@@ -112,6 +121,7 @@ export function useSSEReconnect(onReconnect: () => void, options?: UseSSEReconne
 
     const delay = Math.min(baseDelayMs * Math.pow(2, attemptRef.current), maxDelayMs);
 
+    setNextRetryMs(delay);
     setState('reconnecting');
 
     timerRef.current = setTimeout(() => {
@@ -129,5 +139,5 @@ export function useSSEReconnect(onReconnect: () => void, options?: UseSSEReconne
     };
   }, [clearTimer]);
 
-  return { state, attempt, onConnected, onDisconnected, reset };
+  return { state, attempt, nextRetryMs, onConnected, onDisconnected, reset };
 }

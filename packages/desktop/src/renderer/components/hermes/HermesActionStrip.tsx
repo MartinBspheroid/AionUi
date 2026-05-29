@@ -10,7 +10,7 @@ import { useMessage } from '@/renderer/hooks/useMessage';
 import type { HermesCheckpoint } from '@/common/types/hermes/hermesExt';
 import { Button, Input, Popconfirm, Popover, Tooltip, Typography } from '@arco-design/web-react';
 import { Brain, History, Redo, Share, Undo } from '@icon-park/react';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -61,9 +61,9 @@ const CheckpointsPopoverContent: React.FC<{
           conversation_id,
           checkpoint_id: id,
         });
-        message.success(t('settings.hermes.conversationActions.restoreCheckpoint'));
+        message.success(t('settings.hermes.conversationActions.restoreSuccess'));
       } catch {
-        message.error('Restore failed');
+        message.error(t('settings.hermes.conversationActions.restoreFailed'));
       } finally {
         setRestoringId(null);
       }
@@ -138,6 +138,14 @@ export const HermesActionStrip: React.FC<Props> = ({
   const [undoing, setUndoing] = useState(false);
   const [forking, setForking] = useState(false);
   const [focusTopic, setFocusTopic] = useState('');
+  const mountedRef = useRef(true);
+
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    []
+  );
 
   // Don't show for non-Hermes agents
   if (unsupported || !capabilities) return null;
@@ -165,9 +173,9 @@ export const HermesActionStrip: React.FC<Props> = ({
       setFocusTopic('');
       message.success(t('settings.hermes.conversationActions.compress'));
     } catch {
-      message.error('Compression failed');
+      message.error(t('settings.hermes.conversationActions.compressFailed'));
     } finally {
-      setCompressing(false);
+      if (mountedRef.current) setCompressing(false);
     }
   };
 
@@ -176,9 +184,9 @@ export const HermesActionStrip: React.FC<Props> = ({
     try {
       await ipcBridge.acpConversation.hermesExt.retry.invoke({ conversation_id });
     } catch {
-      message.error('Retry failed');
+      message.error(t('settings.hermes.conversationActions.retryFailed'));
     } finally {
-      setRetrying(false);
+      if (mountedRef.current) setRetrying(false);
     }
   };
 
@@ -187,9 +195,9 @@ export const HermesActionStrip: React.FC<Props> = ({
     try {
       await ipcBridge.acpConversation.hermesExt.undo.invoke({ conversation_id });
     } catch {
-      message.error('Undo failed');
+      message.error(t('settings.hermes.conversationActions.undoFailed'));
     } finally {
-      setUndoing(false);
+      if (mountedRef.current) setUndoing(false);
     }
   };
 
@@ -199,9 +207,9 @@ export const HermesActionStrip: React.FC<Props> = ({
       const result = await ipcBridge.acpConversation.hermesExt.forkSession.invoke({ conversation_id });
       void navigate(`/conversation/${result.session_id}`);
     } catch {
-      message.error('Fork failed');
+      message.error(t('settings.hermes.conversationActions.forkFailed'));
     } finally {
-      setForking(false);
+      if (mountedRef.current) setForking(false);
     }
   };
 

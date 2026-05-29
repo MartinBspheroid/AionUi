@@ -332,7 +332,7 @@ const CliConfigPanel: React.FC = () => {
                       handleRun(cmd.id);
                     }}
                   >
-                    Run
+                    {t('settings.hermes.cli.run')}
                   </Button>
                 </div>
               ))}

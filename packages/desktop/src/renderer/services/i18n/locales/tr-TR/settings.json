@@ -1056,7 +1056,8 @@
         "home": "HERMES_HOME",
         "config": "Config path",
         "env": ".env path"
-      }
+      },
+      "run": "Run"
     },
     "logs": {
       "tabTitle": "Logs",
@@ -1139,7 +1140,15 @@
       "memorySaveLabel": "Note",
       "memorySavePlaceholder": "What should Hermes remember?",
       "memorySaveSuccess": "Saved to MEMORY.md",
-      "memorySaveFailed": "Failed to save to memory"
-    }
+      "memorySaveFailed": "Failed to save to memory",
+      "compressFailed": "Compression failed",
+      "retryFailed": "Retry failed",
+      "undoFailed": "Undo failed",
+      "forkFailed": "Fork failed",
+      "restoreFailed": "Failed to restore checkpoint",
+      "restoreSuccess": "Checkpoint restored",
+      "memoryUnavailable": "Hermes memory is not available"
+    },
+    "tooltipHermesSettings": "Hermes settings"
   }
 }

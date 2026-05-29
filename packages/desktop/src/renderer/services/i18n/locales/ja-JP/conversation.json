@@ -286,5 +286,6 @@
   "sendbox": {
     "hint": "/ でコマンド、@ でファイルを参照"
   },
-  "notFound": "会話が存在しないか、削除されました"
+  "notFound": "会話が存在しないか、削除されました",
+  "agentConnectionLost": "Agent connection lost"
 }

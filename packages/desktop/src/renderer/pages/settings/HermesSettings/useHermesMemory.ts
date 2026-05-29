@@ -16,7 +16,7 @@
 import { ipcBridge } from '@/common';
 import { isBackendHttpError } from '@/common/adapter/httpBridge';
 import { Message } from '@arco-design/web-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
@@ -73,6 +73,14 @@ export function useHermesMemory(): UseHermesMemoryResult {
   const [userState, setUserState] = useState<SectionState>(initialSection);
   const [memoryState, setMemoryState] = useState<SectionState>(initialSection);
 
+  const mountedRef = useRef(true);
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    []
+  );
+
   // -------------------------------------------------------------------------
   // Load / reload
   // -------------------------------------------------------------------------
@@ -82,6 +90,7 @@ export function useHermesMemory(): UseHermesMemoryResult {
     setError(null);
     try {
       const data = await ipcBridge.acpConversation.hermesExt.getMemory.invoke();
+      if (!mountedRef.current) return;
       setUserState({
         draft: data.user,
         saved: data.user,
@@ -96,13 +105,14 @@ export function useHermesMemory(): UseHermesMemoryResult {
       });
       setUnsupported(false);
     } catch (err) {
+      if (!mountedRef.current) return;
       if (isBackendHttpError(err) && err.status === 404) {
         setUnsupported(true);
       } else {
         setError(String(err));
       }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, []);
 
@@ -130,7 +140,7 @@ export function useHermesMemory(): UseHermesMemoryResult {
             : String(err);
       Message.error(t('settings.hermes.memory.saveError', 'Failed to save: {{msg}}', { msg }));
     } finally {
-      setUserState((prev) => ({ ...prev, saving: false }));
+      if (mountedRef.current) setUserState((prev) => ({ ...prev, saving: false }));
     }
   }, [userState.draft, reload, t]);
 
@@ -150,7 +160,7 @@ export function useHermesMemory(): UseHermesMemoryResult {
             : String(err);
       Message.error(t('settings.hermes.memory.saveError', 'Failed to save: {{msg}}', { msg }));
     } finally {
-      setMemoryState((prev) => ({ ...prev, saving: false }));
+      if (mountedRef.current) setMemoryState((prev) => ({ ...prev, saving: false }));
     }
   }, [memoryState.draft, reload, t]);
 

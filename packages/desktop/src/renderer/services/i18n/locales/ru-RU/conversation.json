@@ -286,5 +286,6 @@
   "sendbox": {
     "hint": "Введите / для команд, @ для ссылок на файлы"
   },
-  "notFound": "Беседа не найдена или была удалена"
+  "notFound": "Беседа не найдена или была удалена",
+  "agentConnectionLost": "Agent connection lost"
 }

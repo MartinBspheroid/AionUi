@@ -70,7 +70,80 @@ describe('HermesMemoryQuickSave', () => {
 
     await waitFor(() => expect(setMemoryInvoke).toHaveBeenCalled());
     const callArg = setMemoryInvoke.mock.calls[0][0];
-    expect(callArg.memory).toContain('existing content');
-    expect(callArg.memory).toContain('remember this');
+    expect(callArg.memory).toBe('existing content\n\nremember this');
+  });
+
+  it('does not add a leading separator when existing memory is empty', async () => {
+    getMemoryInvoke.mockResolvedValue({ memory: '', user: '' });
+    setMemoryInvoke.mockResolvedValue(undefined);
+
+    const { container } = render(<HermesMemoryQuickSave conversation_id='conv-1' />);
+    const trigger = container.querySelector('button');
+    if (trigger) fireEvent.click(trigger);
+
+    await waitFor(() => {
+      const textarea = document.querySelector('textarea');
+      expect(textarea).toBeTruthy();
+    });
+    const textarea = document.querySelector('textarea')!;
+    fireEvent.change(textarea, { target: { value: 'first note' } });
+
+    const buttons = Array.from(document.querySelectorAll('button'));
+    const saveBtn = buttons.find((b) => /memorySave|save/i.test(b.textContent || ''));
+    if (saveBtn) fireEvent.click(saveBtn);
+
+    await waitFor(() => expect(setMemoryInvoke).toHaveBeenCalled());
+    const callArg = setMemoryInvoke.mock.calls[0][0];
+    expect(callArg).toEqual({ memory: 'first note' });
+    expect(callArg.memory.startsWith('\n\n')).toBe(false);
+  });
+
+  it('treats whitespace-only existing memory as empty (no leading separator)', async () => {
+    getMemoryInvoke.mockResolvedValue({ memory: '   ', user: '' });
+    setMemoryInvoke.mockResolvedValue(undefined);
+
+    const { container } = render(<HermesMemoryQuickSave conversation_id='conv-1' />);
+    const trigger = container.querySelector('button');
+    if (trigger) fireEvent.click(trigger);
+
+    await waitFor(() => {
+      const textarea = document.querySelector('textarea');
+      expect(textarea).toBeTruthy();
+    });
+    const textarea = document.querySelector('textarea')!;
+    fireEvent.change(textarea, { target: { value: 'note' } });
+
+    const buttons = Array.from(document.querySelectorAll('button'));
+    const saveBtn = buttons.find((b) => /memorySave|save/i.test(b.textContent || ''));
+    if (saveBtn) fireEvent.click(saveBtn);
+
+    await waitFor(() => expect(setMemoryInvoke).toHaveBeenCalled());
+    const callArg = setMemoryInvoke.mock.calls[0][0];
+    // Whitespace-only memory has no separator prepended; the note is not preceded by '\n\n'.
+    expect(callArg.memory).toBe('   note');
+    expect(callArg.memory).not.toMatch(/\s*\n\nnote$/);
+  });
+
+  it('shows an error message when saving fails with a non-404 error', async () => {
+    getMemoryInvoke.mockResolvedValue({ memory: 'existing content', user: '' });
+    setMemoryInvoke.mockRejectedValue(new Error('boom'));
+
+    const { container } = render(<HermesMemoryQuickSave conversation_id='conv-1' />);
+    const trigger = container.querySelector('button');
+    if (trigger) fireEvent.click(trigger);
+
+    await waitFor(() => {
+      const textarea = document.querySelector('textarea');
+      expect(textarea).toBeTruthy();
+    });
+    const textarea = document.querySelector('textarea')!;
+    fireEvent.change(textarea, { target: { value: 'remember this' } });
+
+    const buttons = Array.from(document.querySelectorAll('button'));
+    const saveBtn = buttons.find((b) => /memorySave|save/i.test(b.textContent || ''));
+    if (saveBtn) fireEvent.click(saveBtn);
+
+    await waitFor(() => expect(errorFn).toHaveBeenCalled());
+    expect(successFn).not.toHaveBeenCalled();
   });
 });

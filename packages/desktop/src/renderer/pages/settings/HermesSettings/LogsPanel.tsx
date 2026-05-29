@@ -15,7 +15,7 @@
 import type { HermesLogEntry } from '@/common/types/hermes/hermesExt';
 import { application } from '@/common/adapter/ipcBridge';
 import { Button, Input, Select, Tag, Typography } from '@arco-design/web-react';
-import { Copy, Delete, PauseOne, PlayOne } from '@icon-park/react';
+import { Copy, Delete, Down, PauseOne, PlayOne, Up } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PanelHeader, SectionCard } from './components';
@@ -57,15 +57,6 @@ const LEVEL_COLOR: Record<HermesLogEntry['level'], string> = {
   log: 'gray',
 };
 
-const LEVEL_OPTIONS: Array<{ label: string; value: LogLevel }> = [
-  { label: 'All', value: 'all' },
-  { label: 'Error', value: 'error' },
-  { label: 'Warn', value: 'warn' },
-  { label: 'Info', value: 'info' },
-  { label: 'Debug', value: 'debug' },
-  { label: 'Log', value: 'log' },
-];
-
 function formatSeq(seq: number): string {
   return `#${String(seq).padStart(5, '0')}`;
 }
@@ -88,6 +79,7 @@ type LogRowProps = {
 };
 
 const LogRow: React.FC<LogRowProps> = ({ entry }) => {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const hasData = entry.data !== null && entry.data !== undefined;
   return (
@@ -99,26 +91,22 @@ const LogRow: React.FC<LogRowProps> = ({ entry }) => {
         </Tag>
         <Text className='text-11px text-t-secondary font-mono shrink-0 max-w-120px truncate mt-1px'>{entry.tag}</Text>
         <Text className='text-12px text-t-primary flex-1 break-words whitespace-pre-wrap'>{entry.message}</Text>
-        <button
-          type='button'
-          className='opacity-0 group-hover:opacity-100 transition-opacity shrink-0 p-2px rounded text-t-tertiary hover:text-t-primary'
+        <Button
+          type='text'
+          size='mini'
+          icon={<Copy />}
+          className='opacity-0 group-hover:opacity-100 transition-opacity shrink-0'
           onClick={() => void navigator.clipboard.writeText(`[${entry.level}] [${entry.tag}] ${entry.message}`)}
-          title='Copy'
-        >
-          <svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
-            <rect x='9' y='9' width='13' height='13' rx='2' />
-            <path d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1' />
-          </svg>
-        </button>
+          title={t('settings.hermes.logs.copy')}
+        />
         {hasData && (
-          <button
-            type='button'
-            className='opacity-0 group-hover:opacity-100 transition-opacity shrink-0 p-2px rounded text-t-tertiary hover:text-t-primary text-10px font-mono'
+          <Button
+            type='text'
+            size='mini'
+            icon={expanded ? <Up /> : <Down />}
+            className='opacity-0 group-hover:opacity-100 transition-opacity shrink-0'
             onClick={() => setExpanded((v) => !v)}
-            title={expanded ? 'Collapse data' : 'Expand data'}
-          >
-            {expanded ? '▲' : '▼'}
-          </button>
+          />
         )}
       </div>
       {hasData && expanded && (
@@ -153,6 +141,19 @@ export const LogsPanel: React.FC = () => {
   const bottomRef = useRef<HTMLDivElement>(null);
   const hoverPausedRef = useRef(false);
 
+  // ---- Level filter options (i18n) ----
+  const levelOptions = useMemo<Array<{ label: string; value: LogLevel }>>(
+    () => [
+      { label: t('settings.hermes.logs.levels.all'), value: 'all' },
+      { label: t('settings.hermes.logs.levels.error'), value: 'error' },
+      { label: t('settings.hermes.logs.levels.warn'), value: 'warn' },
+      { label: t('settings.hermes.logs.levels.info'), value: 'info' },
+      { label: t('settings.hermes.logs.levels.debug'), value: 'debug' },
+      { label: t('settings.hermes.logs.levels.debug'), value: 'log' },
+    ],
+    [t]
+  );
+
   // ---- Flush ring → state ----
   const flushToState = useCallback(() => {
     setEntries([...ringRef.current]);
@@ -169,7 +170,7 @@ export const LogsPanel: React.FC = () => {
       }
       ringRef.current.push(entry);
 
-      if (!paused && !hoverPausedRef.current) {
+      if (!paused) {
         flushToState();
       }
     });
@@ -223,7 +224,7 @@ export const LogsPanel: React.FC = () => {
         size='small'
         value={levelFilter}
         onChange={(v: LogLevel) => setLevelFilter(v)}
-        options={LEVEL_OPTIONS}
+        options={levelOptions}
         style={{ width: 90 }}
         triggerProps={{ autoAlignPopupWidth: false }}
       />
@@ -275,7 +276,6 @@ export const LogsPanel: React.FC = () => {
           }}
           onMouseLeave={() => {
             hoverPausedRef.current = false;
-            if (!paused) flushToState();
           }}
         >
           {visible.length === 0 ? (

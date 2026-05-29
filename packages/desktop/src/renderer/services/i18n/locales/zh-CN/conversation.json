@@ -286,5 +286,6 @@
   "sendbox": {
     "hint": "输入 / 唤起命令，@ 引用文件"
   },
-  "notFound": "会话不存在或已被删除"
+  "notFound": "会话不存在或已被删除",
+  "agentConnectionLost": "Agent connection lost"
 }

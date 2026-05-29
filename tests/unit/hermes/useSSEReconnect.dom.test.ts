@@ -112,34 +112,46 @@ describe('useSSEReconnect', () => {
     expect(result.current.state).toBe('idle');
   });
 
-  it('second attempt delay is >= first delay (exponential back-off)', () => {
+  it('schedules exponentially growing delays from the hook (1000 -> 2000 -> 4000)', () => {
     const onReconnect = vi.fn();
     const baseDelayMs = 1000;
     const { result } = renderHook(() =>
-      useSSEReconnect(onReconnect, { baseDelayMs, maxDelayMs: 60_000, maxAttempts: 5 })
+      useSSEReconnect(onReconnect, { baseDelayMs, maxDelayMs: 30_000, maxAttempts: 5 })
     );
 
-    // First disconnect: delay = baseDelayMs * 2^0 = 1000 ms
+    // 1st disconnect: attempt 0 -> delay = min(1000 * 2^0, 30000) = 1000 ms
     act(() => {
       result.current.onDisconnected();
     });
+    expect(result.current.state).toBe('reconnecting');
+    expect(result.current.nextRetryMs).toBe(1000);
+
+    // Fire the scheduled timer; attempt counter advances to 1.
     act(() => {
-      vi.advanceTimersByTime(baseDelayMs);
+      vi.advanceTimersByTime(result.current.nextRetryMs);
     });
     expect(result.current.attempt).toBe(1);
 
-    // Second disconnect: delay = baseDelayMs * 2^1 = 2000 ms; advance only 2000 ms
+    // 2nd disconnect: attempt 1 -> delay = min(1000 * 2^1, 30000) = 2000 ms
     act(() => {
       result.current.onDisconnected();
     });
+    expect(result.current.nextRetryMs).toBe(2000);
+
     act(() => {
-      vi.advanceTimersByTime(baseDelayMs * 2);
+      vi.advanceTimersByTime(result.current.nextRetryMs);
     });
     expect(result.current.attempt).toBe(2);
 
-    // Both timer values satisfy the exponential property
-    const secondDelay = baseDelayMs * 2;
-    const firstDelay = baseDelayMs;
-    expect(secondDelay).toBeGreaterThanOrEqual(firstDelay);
+    // 3rd disconnect: attempt 2 -> delay = min(1000 * 2^2, 30000) = 4000 ms
+    act(() => {
+      result.current.onDisconnected();
+    });
+    expect(result.current.nextRetryMs).toBe(4000);
+
+    act(() => {
+      vi.advanceTimersByTime(result.current.nextRetryMs);
+    });
+    expect(result.current.attempt).toBe(3);
   });
 });

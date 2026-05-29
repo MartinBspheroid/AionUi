@@ -285,5 +285,6 @@
   "sendbox": {
     "hint": "Введіть / для команд, @ для посилань на файли"
   },
-  "notFound": "Розмову не знайдено або її видалено"
+  "notFound": "Розмову не знайдено або її видалено",
+  "agentConnectionLost": "Agent connection lost"
 }
