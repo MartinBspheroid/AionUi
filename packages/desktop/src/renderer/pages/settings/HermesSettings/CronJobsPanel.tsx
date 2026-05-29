@@ -33,11 +33,13 @@ import {
   Switch,
   Table,
   Tag,
+  Tooltip,
   Typography,
 } from '@arco-design/web-react';
 import { Add, Delete, Pause, Play, PlayOne, Refresh } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatRelativeTime } from '@/renderer/utils/time/formatRelativeTime';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -373,9 +375,14 @@ const CronJobsPanel: React.FC<CronJobsPanelProps> = ({ withWrapper = false }) =>
         title: t('settings.hermes.cron.columns.nextRun'),
         dataIndex: 'next_run_at',
         key: 'next_run_at',
-        render: (_: unknown, job: HermesCronJobSummary) => (
-          <span className='text-12px text-t-secondary'>{formatDateTime(job.next_run_at)}</span>
-        ),
+        render: (_: unknown, job: HermesCronJobSummary) =>
+          job.next_run_at ? (
+            <Tooltip content={formatDateTime(job.next_run_at)}>
+              <span className='text-12px cursor-default'>{formatRelativeTime(job.next_run_at)}</span>
+            </Tooltip>
+          ) : (
+            <span className='text-12px text-t-secondary'>-</span>
+          ),
       },
       {
         title: t('settings.hermes.cron.columns.lastRun'),
@@ -388,7 +395,13 @@ const CronJobsPanel: React.FC<CronJobsPanelProps> = ({ withWrapper = false }) =>
               : `${job.repeat_completed ?? 0}/${job.repeat_times}`;
           return (
             <div className='flex flex-col gap-2px'>
-              <span className='text-12px text-t-secondary'>{formatDateTime(job.last_run_at)}</span>
+              {job.last_run_at ? (
+                <Tooltip content={formatDateTime(job.last_run_at)}>
+                  <span className='text-12px cursor-default'>{formatRelativeTime(job.last_run_at)}</span>
+                </Tooltip>
+              ) : (
+                <span className='text-12px text-t-secondary'>-</span>
+              )}
               <span className='text-11px text-t-tertiary'>{repeatLabel}</span>
             </div>
           );

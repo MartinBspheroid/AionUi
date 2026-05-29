@@ -1035,6 +1035,31 @@
       "status": "Status",
       "lastCheck": "Last checked",
       "checkFailed": "Health check failed"
+    },
+    "conversationActions": {
+      "compress": "Compress",
+      "compressHint": "Reduce context to free space — enter optional focus topic",
+      "compressFocus": "Focus topic (optional)",
+      "compressFocusPlaceholder": "e.g. authentication flow",
+      "compressConfirm": "Compress",
+      "retry": "Retry",
+      "retryHint": "Re-run the last agent turn",
+      "undo": "Undo",
+      "undoHint": "Roll back the last agent turn",
+      "fork": "Fork",
+      "forkHint": "Start a new conversation from this point",
+      "checkpoints": "Checkpoints",
+      "checkpointsHint": "Restore a previous checkpoint",
+      "noCheckpoints": "No checkpoints yet",
+      "restoreCheckpoint": "Restore",
+      "contextUsage": "{{pct}}% context used",
+      "contextUsageFull": "Context window nearly full — compress to continue",
+      "memorySave": "Save to Memory",
+      "memorySaveHint": "Append a note to Hermes MEMORY.md",
+      "memorySaveLabel": "Note",
+      "memorySavePlaceholder": "What should Hermes remember?",
+      "memorySaveSuccess": "Saved to MEMORY.md",
+      "memorySaveFailed": "Failed to save to memory"
     }
   }
 }

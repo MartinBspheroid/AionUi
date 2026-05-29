@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Tabs } from '@arco-design/web-react';
+import { ipcBridge } from '@/common';
+import { Alert, Tabs } from '@arco-design/web-react';
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -35,8 +36,9 @@ const HermesSettings: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<HermesTab>(() => {
     const param = searchParams.get('tab');
-    return isHermesTab(param) ? param : 'memory';
+    return isHermesTab(param) ? param : 'gateway';
   });
+  const [gatewayAlert, setGatewayAlert] = useState<'checking' | 'ok' | 'error'>('checking');
 
   useEffect(() => {
     const param = searchParams.get('tab');
@@ -44,6 +46,13 @@ const HermesSettings: React.FC = () => {
       setActiveTab(param);
     }
   }, [searchParams, activeTab]);
+
+  React.useEffect(() => {
+    ipcBridge.acpConversation.checkAgentHealth
+      .invoke({ backend: 'hermes' })
+      .then((result) => setGatewayAlert(result.available ? 'ok' : 'error'))
+      .catch(() => setGatewayAlert('error'));
+  }, []);
 
   const handleTabChange = (key: string) => {
     if (isHermesTab(key)) {
@@ -56,12 +65,28 @@ const HermesSettings: React.FC = () => {
 
   return (
     <SettingsPageWrapper contentClassName='max-w-1200px'>
+      {gatewayAlert === 'error' && (
+        <Alert
+          type='warning'
+          title={t('settings.hermes.gateway.unhealthy')}
+          content={t('settings.hermes.gateway.checkFailed')}
+          closable
+          onClose={() => setGatewayAlert('ok')}
+          className='mb-12px'
+        />
+      )}
       <Tabs
         activeTab={activeTab}
         onChange={handleTabChange}
         type='line'
         className='flex flex-col flex-1 min-h-0 [&>.arco-tabs-content]:pt-0'
       >
+        <Tabs.TabPane key='gateway' title={t('settings.hermes.gateway.tabTitle')}>
+          <React.Suspense fallback={null}>
+            <GatewayStatusPanel />
+          </React.Suspense>
+        </Tabs.TabPane>
+
         <Tabs.TabPane key='memory' title={t('settings.hermes.memory.tabTitle')}>
           <React.Suspense fallback={null}>
             <MemoryPanel />
@@ -99,12 +124,6 @@ const HermesSettings: React.FC = () => {
         <Tabs.TabPane key='insights' title={t('settings.hermes.insights.tabTitle')}>
           <React.Suspense fallback={null}>
             <InsightsPanel />
-          </React.Suspense>
-        </Tabs.TabPane>
-
-        <Tabs.TabPane key='gateway' title={t('settings.hermes.gateway.tabTitle')}>
-          <React.Suspense fallback={null}>
-            <GatewayStatusPanel />
           </React.Suspense>
         </Tabs.TabPane>
       </Tabs>

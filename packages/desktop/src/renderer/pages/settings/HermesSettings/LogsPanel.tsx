@@ -87,16 +87,50 @@ type LogRowProps = {
   entry: BufferedEntry;
 };
 
-const LogRow: React.FC<LogRowProps> = ({ entry }) => (
-  <div className='flex items-start gap-8px py-4px border-b border-border-primary last:border-b-0 min-h-24px'>
-    <Text className='text-11px text-t-tertiary font-mono shrink-0 mt-1px w-52px'>{formatSeq(entry.seq)}</Text>
-    <Tag color={LEVEL_COLOR[entry.level]} size='small' className='shrink-0 uppercase text-10px leading-none'>
-      {entry.level}
-    </Tag>
-    <Text className='text-11px text-t-secondary font-mono shrink-0 max-w-120px truncate mt-1px'>{entry.tag}</Text>
-    <Text className='text-12px text-t-primary flex-1 break-words whitespace-pre-wrap'>{entry.message}</Text>
-  </div>
-);
+const LogRow: React.FC<LogRowProps> = ({ entry }) => {
+  const [expanded, setExpanded] = useState(false);
+  const hasData = entry.data !== null && entry.data !== undefined;
+  return (
+    <div className='border-b border-border-primary last:border-b-0'>
+      <div className='group flex items-start gap-8px py-4px min-h-24px'>
+        <Text className='text-11px text-t-tertiary font-mono shrink-0 mt-1px w-52px'>{formatSeq(entry.seq)}</Text>
+        <Tag color={LEVEL_COLOR[entry.level]} size='small' className='shrink-0 uppercase text-10px leading-none'>
+          {entry.level}
+        </Tag>
+        <Text className='text-11px text-t-secondary font-mono shrink-0 max-w-120px truncate mt-1px'>{entry.tag}</Text>
+        <Text className='text-12px text-t-primary flex-1 break-words whitespace-pre-wrap'>{entry.message}</Text>
+        <button
+          type='button'
+          className='opacity-0 group-hover:opacity-100 transition-opacity shrink-0 p-2px rounded text-t-tertiary hover:text-t-primary'
+          onClick={() => void navigator.clipboard.writeText(`[${entry.level}] [${entry.tag}] ${entry.message}`)}
+          title='Copy'
+        >
+          <svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+            <rect x='9' y='9' width='13' height='13' rx='2' />
+            <path d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1' />
+          </svg>
+        </button>
+        {hasData && (
+          <button
+            type='button'
+            className='opacity-0 group-hover:opacity-100 transition-opacity shrink-0 p-2px rounded text-t-tertiary hover:text-t-primary text-10px font-mono'
+            onClick={() => setExpanded((v) => !v)}
+            title={expanded ? 'Collapse data' : 'Expand data'}
+          >
+            {expanded ? '▲' : '▼'}
+          </button>
+        )}
+      </div>
+      {hasData && expanded && (
+        <div className='pb-4px pl-60px'>
+          <pre className='font-mono text-11px bg-3 p-4px rounded whitespace-pre-wrap break-words text-t-secondary'>
+            {JSON.stringify(entry.data, null, 2)}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // LogsPanel
@@ -117,6 +151,7 @@ export const LogsPanel: React.FC = () => {
 
   // ---- Scroll ref ----
   const bottomRef = useRef<HTMLDivElement>(null);
+  const hoverPausedRef = useRef(false);
 
   // ---- Flush ring → state ----
   const flushToState = useCallback(() => {
@@ -134,16 +169,16 @@ export const LogsPanel: React.FC = () => {
       }
       ringRef.current.push(entry);
 
-      if (!paused) {
+      if (!paused && !hoverPausedRef.current) {
         flushToState();
       }
     });
     return () => unsubscribe();
   }, [paused, flushToState]);
 
-  // ---- Auto-scroll to bottom when not paused ----
+  // ---- Auto-scroll to bottom when not paused and not hover-paused ----
   useEffect(() => {
-    if (!paused) {
+    if (!paused && !hoverPausedRef.current) {
       bottomRef.current?.scrollIntoView({ behavior: 'auto' });
     }
   }, [entries, paused]);
@@ -232,7 +267,17 @@ export const LogsPanel: React.FC = () => {
       />
 
       <SectionCard bodyClassName='!p-0'>
-        <div className='overflow-y-auto px-12px py-8px' style={{ maxHeight: 480, minHeight: 200 }}>
+        <div
+          className='overflow-y-auto px-12px py-8px'
+          style={{ maxHeight: 480, minHeight: 200 }}
+          onMouseEnter={() => {
+            hoverPausedRef.current = true;
+          }}
+          onMouseLeave={() => {
+            hoverPausedRef.current = false;
+            if (!paused) flushToState();
+          }}
+        >
           {visible.length === 0 ? (
             <div className='flex items-center justify-center py-32px'>
               <Text className='text-12px text-t-tertiary'>{t('hermes.logs.empty', 'No log entries yet.')}</Text>

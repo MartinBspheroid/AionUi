@@ -92,6 +92,19 @@ const InsightsPanel: React.FC = () => {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void load();
+    };
+    const onFocus = () => void load();
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [load]);
+
   const { totalInput, totalOutput, totalCost, flatRows } = useMemo(() => {
     let tin = 0;
     let tout = 0;

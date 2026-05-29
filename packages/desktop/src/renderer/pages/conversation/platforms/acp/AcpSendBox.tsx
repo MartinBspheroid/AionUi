@@ -41,6 +41,8 @@ import { Brain, MagicHat, Shield } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAcpInitialMessage } from './useAcpInitialMessage';
+import HermesActionStrip from '@/renderer/components/hermes/HermesActionStrip';
+import HermesMemoryQuickSave from '@/renderer/components/hermes/HermesMemoryQuickSave';
 import type { UseAcpMessageReturn } from './useAcpMessage';
 
 const useAcpSendBoxDraft = getSendBoxDraftHook('acp', {
@@ -526,6 +528,12 @@ Please check your local CLI tool authentication status`,
         onClear={clear}
       />
       <ThoughtDisplay running={aiProcessing && !hasThinkingMessage} onStop={handleStop} />
+      <HermesActionStrip
+        conversation_id={conversation_id}
+        running={messageState.running}
+        tokenUsage={messageState.tokenUsage}
+        context_limit={messageState.context_limit}
+      />
 
       <SendBox
         onMobilePlusClick={isMobile ? () => setIsMobileSheetOpen(true) : undefined}
@@ -550,7 +558,12 @@ Please check your local CLI tool authentication status`,
         supportedExts={allSupportedExts}
         defaultMultiLine={!isMobile}
         lockMultiLine={!isMobile}
-        tools={<FileAttachButton openFileSelector={openFileSelector} onLocalFilesAdded={handleFilesAdded} />}
+        tools={
+          <>
+            <FileAttachButton openFileSelector={openFileSelector} onLocalFilesAdded={handleFilesAdded} />
+            <HermesMemoryQuickSave conversation_id={conversation_id} />
+          </>
+        }
         rightTools={
           showModeSelector ? (
             <AgentModeSelector

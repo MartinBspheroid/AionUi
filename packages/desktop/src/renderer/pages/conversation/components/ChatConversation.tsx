@@ -33,6 +33,7 @@ import AionrsModelSelector from '../platforms/aionrs/AionrsModelSelector';
 import { useAionrsModelSelection } from '../platforms/aionrs/useAionrsModelSelection';
 import { usePreviewContext } from '../Preview';
 import StarOfficeMonitorCard from '../platforms/openclaw/StarOfficeMonitorCard.tsx';
+import HermesSessionBadge from '@/renderer/components/hermes/HermesSessionBadge';
 // import SkillRuleGenerator from './components/SkillRuleGenerator'; // Temporarily hidden
 
 /** Check whether a specific skill is mounted on the conversation. */
@@ -382,6 +383,12 @@ const ChatConversation: React.FC<{
           />
         </div>
       )}
+      {conversation?.type === 'acp' &&
+        (conversation?.extra as { backend?: string } | undefined)?.backend === 'hermes' && (
+          <div className='shrink-0'>
+            <HermesSessionBadge conversation={conversation} />
+          </div>
+        )}
       {modelSelector && <div className='shrink-0'>{modelSelector}</div>}
     </div>
   );
