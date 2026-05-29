@@ -3,7 +3,7 @@
  * 1. Delete pending skill confirmation
  * 2. Remove custom skill from assistant confirmation
  */
-import type { Message } from '@arco-design/web-react';
+import type { MessageInstance } from '@/renderer/hooks/useMessage';
 import type { PendingSkill } from './types';
 import { Modal } from '@arco-design/web-react';
 import React from 'react';
@@ -26,7 +26,7 @@ type SkillConfirmModalsProps = {
   selectedSkills: string[];
   setSelectedSkills: (v: string[]) => void;
 
-  message: ReturnType<typeof Message.useMessage>[0];
+  message: MessageInstance;
 };
 
 const SkillConfirmModals: React.FC<SkillConfirmModalsProps> = ({

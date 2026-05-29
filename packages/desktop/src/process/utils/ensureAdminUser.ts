@@ -13,7 +13,10 @@
  * Failure policy: log and swallow. Next boot retries. Must not block startup.
  */
 
+import { createLogger } from '@/common/log';
 import { loadUserWebUIConfig, saveUserWebUIConfig } from './webuiConfig';
+
+const log = createLogger('WebUI Migration');
 
 type AuthStatusResponse = {
   success?: boolean;
@@ -27,7 +30,7 @@ export async function ensureAdminUser(backendPort: number): Promise<void> {
     // 1. Ask backend whether SQLite already has a real user.
     const statusRes = await fetch(`http://127.0.0.1:${backendPort}/api/auth/status`);
     if (!statusRes.ok) {
-      console.error(`[WebUI Migration] /api/auth/status returned ${statusRes.status}; skipping`);
+      log.error(`/api/auth/status returned ${statusRes.status}; skipping`);
       return;
     }
     const status = (await statusRes.json()) as AuthStatusResponse;
@@ -45,7 +48,7 @@ export async function ensureAdminUser(backendPort: number): Promise<void> {
       return;
     }
 
-    console.info('[WebUI Migration] Seeding system_default_user from legacy webui.config.json hash');
+    log.info('Seeding system_default_user from legacy webui.config.json hash');
 
     // 3. Hand the legacy hash to backend. Idempotent: backend does
     // UPDATE ... WHERE id='system_default_user' so retries are safe.
@@ -60,7 +63,7 @@ export async function ensureAdminUser(backendPort: number): Promise<void> {
     });
     if (!seedRes.ok) {
       const text = await seedRes.text().catch(() => '');
-      console.error(`[WebUI Migration] credentials seed failed: ${seedRes.status} ${text}`);
+      log.error(`credentials seed failed: ${seedRes.status} ${text}`);
       return;
     }
 
@@ -69,10 +72,10 @@ export async function ensureAdminUser(backendPort: number): Promise<void> {
     // returns early without re-seeding — but the file is still cleaned up on
     // any future successful pass.
     await saveUserWebUIConfig(config);
-    console.info('[WebUI Migration] Seed complete; legacy password fields stripped from webui.config.json');
+    log.info('Seed complete; legacy password fields stripped from webui.config.json');
   } catch (err) {
     // Swallow: next boot retries. Network/backend restart should not block
     // Electron from launching.
-    console.error('[WebUI Migration] ensureAdminUser encountered an error:', err);
+    log.error('ensureAdminUser encountered an error:', err);
   }
 }

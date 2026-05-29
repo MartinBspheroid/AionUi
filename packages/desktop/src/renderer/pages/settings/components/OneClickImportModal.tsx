@@ -35,7 +35,7 @@ const OneClickImportModal: React.FC<OneClickImportModalProps> = ({ visible, onCa
       const loadAgents = async () => {
         try {
           const result = await getAgents();
-          const agentList = result.map((agent) => ({ backend: agent.backend, name: agent.name }));
+          const agentList = result.map((agent) => ({ backend: agent.backend ?? '', name: agent.name }));
           setDetectedAgents(agentList);
           // 设置第一个agent为默认值
           if (agentList.length > 1) {
@@ -108,7 +108,7 @@ const OneClickImportModal: React.FC<OneClickImportModalProps> = ({ visible, onCa
       const serversToImport = importableServers.map((server) => {
         // 为CLI导入的服务器生成标准的JSON格式
         const serverConfig: Record<string, string | string[] | Record<string, string>> = {
-          description: server.description,
+          description: server.description ?? '',
         };
 
         if (server.transport.type === 'stdio') {

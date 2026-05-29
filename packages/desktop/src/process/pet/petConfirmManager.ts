@@ -10,6 +10,9 @@ import type { IConfirmation } from '@/common/chat/chatLib';
 import { ipcBridge } from '@/common';
 import { ProcessConfig } from '@process/utils/initStorage';
 import i18n from '@process/services/i18n';
+import { createLogger } from '@/common/log';
+
+const log = createLogger('PetConfirm');
 
 // petConfirmManager is dynamically imported → rollup places it in out/main/chunks/,
 // so __dirname is out/main/chunks/ and we need '../..' to reach out/.
@@ -195,7 +198,7 @@ function createConfirmWindow(): void {
     windowReady = false;
   });
 
-  console.log('[PetConfirm] Confirm window created');
+  log.info('Confirm window created');
 }
 
 /**
@@ -208,7 +211,7 @@ function destroyConfirmWindow(): void {
   confirmWindow = null;
   windowReady = false;
   pendingConfirmations = [];
-  console.log('[PetConfirm] Confirm window destroyed');
+  log.info('Confirm window destroyed');
 }
 
 /**
@@ -221,11 +224,11 @@ function loadContent(): void {
 
   if (!app.isPackaged && rendererUrl) {
     confirmWindow.loadURL(`${rendererUrl}/pet/pet-confirm.html`).catch((error) => {
-      console.error('[PetConfirm] loadURL failed:', error);
+      log.error('loadURL failed:', error);
     });
   } else {
     confirmWindow.loadFile(path.join(RENDERER_DIR, 'pet-confirm.html')).catch((error) => {
-      console.error('[PetConfirm] loadFile failed:', error);
+      log.error('loadFile failed:', error);
     });
   }
 }
@@ -325,7 +328,7 @@ function registerIpcHandlers(): void {
   ipcMain.on(
     'pet:confirm-respond',
     (_event, data: { conversation_id: string; msg_id: string; call_id: string; data: any }) => {
-      console.log('[PetConfirm] Received response:', JSON.stringify(data));
+      log.info('Received response:', JSON.stringify(data));
 
       // Remove from local tracking
       const confirmation = Array.from(currentConfirmations.values()).find(
@@ -355,7 +358,7 @@ function registerIpcHandlers(): void {
           data: data.data,
         })
         .catch((error: unknown) => {
-          console.error('[PetConfirm] confirmation.confirm.invoke failed:', error);
+          log.error('confirmation.confirm.invoke failed:', error);
         });
 
       // Close window if no confirmations left

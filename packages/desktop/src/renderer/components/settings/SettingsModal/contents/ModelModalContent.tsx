@@ -18,6 +18,7 @@ import { isNewApiPlatform, NEW_API_PROTOCOL_OPTIONS } from '@/renderer/utils/mod
 import EditModeModal from '@/renderer/pages/settings/components/EditModeModal';
 import AionScrollArea from '@/renderer/components/base/AionScrollArea';
 import { useProvidersQuery } from '@/renderer/hooks/agent/useModelProviderList';
+import { useMessage } from '@/renderer/hooks/useMessage';
 import { useSettingsViewMode } from '../settingsViewContext';
 import { consumePendingDeepLink } from '@/renderer/hooks/system/useDeepLink';
 import { classifyHealthCheckMessage } from './healthCheckUtils';
@@ -104,7 +105,7 @@ const ModelModalContent: React.FC = () => {
   const [collapseKey, setCollapseKey] = useState<Record<string, boolean>>({});
   const [healthCheckLoading, setHealthCheckLoading] = useState<Record<string, boolean>>({});
   const { data, mutate } = useProvidersQuery();
-  const [message, messageContext] = Message.useMessage();
+  const [message, messageContext] = useMessage();
 
   /**
    * Create when the provider id is new, update otherwise.
@@ -201,7 +202,9 @@ const ModelModalContent: React.FC = () => {
     const startTime = Date.now();
     let tempConversationId: string | null = null;
     let timeoutId: NodeJS.Timeout | null = null;
-    let unsubscribe: (() => void) | null = null;
+    // Held in an object so the assignment inside the Promise executor below is
+    // visible to control-flow analysis in the outer `finally` block.
+    const cleanup: { unsubscribe: (() => void) | null } = { unsubscribe: null };
 
     try {
       // 测活走统一对话链路，与常规请求路径保持一致
@@ -298,7 +301,7 @@ const ModelModalContent: React.FC = () => {
           resolveOnce({ success: true, latency: duration });
         };
 
-        unsubscribe = responseStream.on(responseListener);
+        cleanup.unsubscribe = responseStream.on(responseListener);
 
         // 首个响应超时（默认 30s）
         timeoutId = setTimeout(() => {
@@ -396,9 +399,7 @@ const ModelModalContent: React.FC = () => {
     } finally {
       // 清理
       if (timeoutId) clearTimeout(timeoutId);
-      if (unsubscribe) {
-        unsubscribe();
-      }
+      cleanup.unsubscribe?.();
       if (tempConversationId) {
         // 删除临时对话
         ipcBridge.conversation.remove.invoke({ id: tempConversationId }).catch(() => {});

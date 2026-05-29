@@ -10,7 +10,8 @@ import FlexFullContainer from '@/renderer/components/layout/FlexFullContainer';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { usePreviewContext } from '@/renderer/pages/conversation/Preview';
 import { getWorkspaceDisplayName as getDisplayName } from '@/renderer/utils/workspace/workspace';
-import { Empty, Message, Tree } from '@arco-design/web-react';
+import { Empty, Tree } from '@arco-design/web-react';
+import { useMessage } from '@/renderer/hooks/useMessage';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import FileChangeList from './components/FileChangeList';
@@ -52,7 +53,7 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({
   const { openPreview } = usePreviewContext();
 
   // Message API setup
-  const [internalMessageApi, messageContext] = Message.useMessage();
+  const [internalMessageApi, messageContext] = useMessage();
   const messageApi = externalMessageApi ?? internalMessageApi;
   const shouldRenderLocalMessageContext = !externalMessageApi;
 
@@ -134,7 +135,7 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({
   });
 
   // Context menu calculations
-  const hasOriginalFiles = treeHook.files.length > 0 && treeHook.files[0]?.children?.length > 0;
+  const hasOriginalFiles = treeHook.files.length > 0 && (treeHook.files[0]?.children?.length ?? 0) > 0;
   const rootName = treeHook.files[0]?.name ?? '';
 
   // Hide root directory when there's a single root with children, as Toolbar serves as the first-level directory
@@ -359,8 +360,8 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({
                 }}
                 multiple
                 renderTitle={(node) => {
-                  const relativePath = node.dataRef.relativePath;
-                  const isFile = node.dataRef.isFile;
+                  const relativePath = node.dataRef?.relativePath;
+                  const isFile = node.dataRef?.isFile;
                   const isPasteTarget = !isFile && pasteHook.pasteTargetFolder === relativePath;
                   const nodeData = node.dataRef as IDirOrFile;
 
@@ -453,8 +454,9 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({
                   treeHook.setExpandedKeys(keys);
                 }}
                 loadMore={(treeNode) => {
-                  const path = treeNode.props.dataRef.fullPath;
-                  const targetRelPath = treeNode.props.dataRef.relativePath;
+                  const path = treeNode.props.dataRef?.fullPath;
+                  const targetRelPath = treeNode.props.dataRef?.relativePath;
+                  if (path === undefined) return Promise.resolve();
                   return ipcBridge.conversation.getWorkspace
                     .invoke({ conversation_id, workspace, path })
                     .then((res) => {

@@ -165,9 +165,10 @@ jobs:
       - name: Run postinstall
         run: npm run postinstall || true
 
+      # Gating: `test:coverage` fails when coverage drops below the ratchet floor
+      # in vitest.config.ts (or when a test fails). A drop blocks the PR.
       - name: Run coverage tests
         id: coverage
-        continue-on-error: true
         run: bun run test:coverage
 
       - name: Upload coverage to Codecov (Linux coverage only)
@@ -190,9 +191,9 @@ jobs:
         shell: bash
         run: |
           if [ "${{ steps.coverage.outcome }}" = "failure" ]; then
-            echo "::warning::Coverage tests failed (non-blocking). Check logs for failed test details."
-            echo "## Coverage check (non-blocking warning)" >> $GITHUB_STEP_SUMMARY
-            echo "Coverage command failed in this run. Please review test failures in logs." >> $GITHUB_STEP_SUMMARY
+            echo "::error::Coverage check failed — tests failed or coverage dropped below the ratchet floor (see vitest.config.ts thresholds)."
+            echo "## Coverage check FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "Coverage command failed: a test failed or coverage regressed below the ratchet floor. Add tests for changed lines." >> $GITHUB_STEP_SUMMARY
             if [ -f coverage/lcov.info ]; then
               echo "lcov.info exists, Codecov upload can still run." >> $GITHUB_STEP_SUMMARY
             else

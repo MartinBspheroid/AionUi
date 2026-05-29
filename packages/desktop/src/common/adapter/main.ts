@@ -8,8 +8,11 @@ import type { BrowserWindow } from 'electron';
 import { ipcMain } from 'electron';
 
 import { bridge } from '@office-ai/platform';
+import { createLogger } from '@/common/log';
 import { ADAPTER_BRIDGE_EVENT_KEY } from './constant';
 import { registerWebSocketBroadcaster, getBridgeEmitter, setBridgeEmitter, broadcastToAll } from './registry';
+
+const log = createLogger('adapter');
 
 /**
  * Bridge event data structure for IPC communication
@@ -53,15 +56,13 @@ bridge.adapter({
       serialized = JSON.stringify({ name, data });
     } catch (error) {
       // RangeError: Invalid string length — data too large to serialize
-      console.error('[adapter] Failed to serialize bridge event:', name, error);
+      log.error('Failed to serialize bridge event:', name, error);
       return;
     }
 
     // Guard: reject oversized payloads to prevent main-process blocking
     if (serialized.length > MAX_IPC_PAYLOAD_SIZE) {
-      console.error(
-        `[adapter] Bridge event "${name}" too large (${(serialized.length / 1024 / 1024).toFixed(1)}MB), skipped`
-      );
+      log.error(`Bridge event "${name}" too large (${(serialized.length / 1024 / 1024).toFixed(1)}MB), skipped`);
       const errorPayload = JSON.stringify({
         name: 'bridge:error',
         data: { originalEvent: name, reason: 'payload_too_large', size: serialized.length },

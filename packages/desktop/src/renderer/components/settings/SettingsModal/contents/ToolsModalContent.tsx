@@ -12,7 +12,7 @@ import { type IMcpServer, BUILTIN_IMAGE_GEN_ID, BUILTIN_IMAGE_GEN_NAME } from '@
 import { isImageGenSupported } from '@/common/utils/imageModelAllowlist';
 import type { SpeechToTextConfig, SpeechToTextProvider } from '@/common/types/provider/speech';
 import { getAgents } from '@/renderer/hooks/agent/useAgents';
-import { Divider, Form, Tooltip, Message, Button, Dropdown, Menu, Modal, Switch, Input } from '@arco-design/web-react';
+import { Divider, Form, Tooltip, Button, Dropdown, Menu, Modal, Switch, Input } from '@arco-design/web-react';
 import { Help, Down, Plus } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -32,8 +32,7 @@ import {
 } from '@/renderer/hooks/mcp';
 import classNames from 'classnames';
 import { useSettingsViewMode } from '../settingsViewContext';
-
-type MessageInstance = ReturnType<typeof Message.useMessage>[0];
+import { useMessage, type MessageInstance } from '@/renderer/hooks/useMessage';
 
 const isBuiltinImageGenServer = (server: IMcpServer) =>
   server.builtin === true && (server.id === BUILTIN_IMAGE_GEN_ID || server.name === BUILTIN_IMAGE_GEN_NAME);
@@ -67,11 +66,11 @@ const normalizeSpeechToTextConfig = (config?: SpeechToTextConfig): SpeechToTextC
   ...DEFAULT_SPEECH_TO_TEXT_CONFIG,
   ...config,
   openai: {
-    ...DEFAULT_SPEECH_TO_TEXT_CONFIG.openai,
+    ...DEFAULT_SPEECH_TO_TEXT_CONFIG.openai!,
     ...config?.openai,
   },
   deepgram: {
-    ...DEFAULT_SPEECH_TO_TEXT_CONFIG.deepgram,
+    ...DEFAULT_SPEECH_TO_TEXT_CONFIG.deepgram!,
     ...config?.deepgram,
   },
 });
@@ -108,6 +107,7 @@ const SpeechToTextSettingsSection: React.FC<{
       onChange((current) => ({
         ...current,
         openai: {
+          ...DEFAULT_SPEECH_TO_TEXT_CONFIG.openai!,
           ...current.openai,
           [field]: value,
         },
@@ -121,6 +121,7 @@ const SpeechToTextSettingsSection: React.FC<{
       onChange((current) => ({
         ...current,
         deepgram: {
+          ...DEFAULT_SPEECH_TO_TEXT_CONFIG.deepgram!,
           ...current.deepgram,
           [field]: value,
         },
@@ -340,7 +341,7 @@ const ModalMcpManagementSection: React.FC<{
         const agents = await getAgents();
         setDetectedAgents(
           agents.map((agent) => ({
-            backend: agent.backend,
+            backend: agent.backend ?? '',
             name: agent.name,
           }))
         );
@@ -506,7 +507,7 @@ const ModalMcpManagementSection: React.FC<{
 
 const ToolsModalContent: React.FC = () => {
   const { t } = useTranslation();
-  const [mcpMessage, mcpMessageContext] = Message.useMessage({ maxCount: 10 });
+  const [mcpMessage, mcpMessageContext] = useMessage({ maxCount: 10 });
   const [imageGenerationModel, setImageGenerationModel] = useState<
     ConfigKeyMap['tools.imageGenerationModel'] | undefined
   >();

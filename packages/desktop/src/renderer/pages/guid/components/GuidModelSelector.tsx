@@ -132,7 +132,9 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
                             <Menu.Item
                               key={provider.id + modelName}
                               className={
-                                current_model?.id + current_model?.use_model === provider.id + modelName ? '!bg-2' : ''
+                                (current_model?.id ?? '') + (current_model?.use_model ?? '') === provider.id + modelName
+                                  ? '!bg-2'
+                                  : ''
                               }
                               onClick={() => {
                                 setCurrentModel({ ...provider, use_model: modelName }).catch((error) => {

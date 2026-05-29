@@ -85,7 +85,7 @@ const getProcessedItemAnchorId = (item: IProcessedItem): string => {
 
 const getProcessedItemCreatedAt = (item: IProcessedItem): number => {
   if ('type' in item && ['file_summary', 'tool_summary', 'artifact'].includes(item.type)) {
-    return item.created_at;
+    return item.created_at ?? 0;
   }
   return item.created_at ?? 0;
 };

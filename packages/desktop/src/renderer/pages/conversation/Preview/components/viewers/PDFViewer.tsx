@@ -7,7 +7,8 @@
 import { ipcBridge } from '@/common';
 import { buildPdfSrc } from '../../previewUrls';
 import { usePreviewToolbarExtras } from '../../context/PreviewToolbarExtrasContext';
-import { Button, Message } from '@arco-design/web-react';
+import { Button } from '@arco-design/web-react';
+import { useMessage } from '@/renderer/hooks/useMessage';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -35,7 +36,7 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ file_path, content, hideToolbar
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const webviewRef = useRef<ElectronWebView>(null);
-  const [messageApi, messageContextHolder] = Message.useMessage();
+  const [messageApi, messageContextHolder] = useMessage();
   const toolbarExtrasContext = usePreviewToolbarExtras();
   const usePortalToolbar = Boolean(toolbarExtrasContext) && !hideToolbar;
 

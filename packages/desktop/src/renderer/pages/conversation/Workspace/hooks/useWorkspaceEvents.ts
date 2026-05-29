@@ -7,6 +7,7 @@
 import { ipcBridge } from '@/common';
 import type { IDirOrFile } from '@/common/adapter/ipcBridge';
 import { emitter, useAddEventListener } from '@/renderer/utils/emitter';
+import type { FileOrFolderItem } from '@/renderer/utils/file/fileTypes';
 import { useCallback, useEffect, useRef } from 'react';
 import type { ContextMenuState } from '../types';
 
@@ -169,14 +170,10 @@ export function useWorkspaceEvents(options: UseWorkspaceEventsOptions) {
    */
   useAddEventListener(
     `${eventPrefix}.selected.file`,
-    (
-      items: Array<{
-        path: string;
-        name: string;
-        isFile: boolean;
-        relativePath?: string;
-      }>
-    ) => {
+    (rawItems: Array<string | FileOrFolderItem>) => {
+      // Only structured items carry the metadata this handler needs; ignore bare strings.
+      // 仅结构化条目携带此处需要的元数据，忽略纯字符串。
+      const items = rawItems.filter((item): item is FileOrFolderItem => typeof item !== 'string');
       // Extract relative paths from items, filter out files (only keep folders in tree selection)
       // 从 items 中提取相对路径，过滤掉文件（树选中状态只保留文件夹）
       const newKeys = items.filter((item) => !item.isFile && item.relativePath).map((item) => item.relativePath!);

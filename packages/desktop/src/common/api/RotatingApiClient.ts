@@ -1,5 +1,8 @@
 import { ApiKeyManager } from './ApiKeyManager';
 import type { AuthType } from '@office-ai/aioncli-core';
+import { createLogger } from '@/common/log';
+
+const log = createLogger('RotatingApiClient');
 
 // Unified interface for chat completion across different providers
 export interface UnifiedChatCompletionParams {
@@ -80,7 +83,7 @@ export abstract class RotatingApiClient<T> {
       try {
         this.client = this.createClientFn(api_key);
       } catch (error) {
-        console.error('[RotatingApiClient] Client initialization failed:', error);
+        log.error('Client initialization failed:', error);
         throw error;
       }
     }
@@ -120,7 +123,8 @@ export abstract class RotatingApiClient<T> {
     if (!error || typeof error !== 'object') return false;
 
     const apiError = error as ApiError;
-    const status = apiError.status || apiError.code;
+    const status = apiError.status ?? apiError.code;
+    if (status === undefined) return false;
 
     // Retry on 401 (unauthorized), 429 (rate limit), 503 (service unavailable), and 5xx errors
     return status === 401 || status === 429 || status === 503 || (status >= 500 && status < 600);
@@ -146,7 +150,7 @@ export abstract class RotatingApiClient<T> {
         const isLastAttempt = attempt === this.options.maxRetries - 1;
         const canRotateKey = this.apiKeyManager?.hasMultipleKeys() && this.isRetryableError(error) && !isLastAttempt;
 
-        if (canRotateKey && this.apiKeyManager.rotateKey()) {
+        if (canRotateKey && this.apiKeyManager?.rotateKey()) {
           this.initializeClient();
           await this.delay(this.options.retryDelay * (attempt + 1));
           continue;

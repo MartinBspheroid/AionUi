@@ -207,7 +207,7 @@ describe('httpBridge', () => {
       const result = await provider.invoke();
 
       expect(result).toBe(42);
-      expect(warnSpy).toHaveBeenCalledWith('[httpBridge] stub: test not yet implemented in backend');
+      expect(warnSpy).toHaveBeenCalledWith('[httpBridge]', 'stub: test not yet implemented in backend');
     });
   });
 

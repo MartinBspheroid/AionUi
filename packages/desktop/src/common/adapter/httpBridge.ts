@@ -6,6 +6,12 @@
  * so existing renderer code works without changes.
  */
 
+import { createLogger } from '@/common/log';
+
+const log = createLogger('httpBridge');
+const ensureWsLog = createLogger('ensureWs');
+const wsMsgLog = createLogger('WS:msg');
+
 // ---------------------------------------------------------------------------
 // Base URL
 // ---------------------------------------------------------------------------
@@ -178,10 +184,7 @@ export async function httpRequest<T>(
     headers['Content-Type'] = 'application/json';
   }
 
-  console.debug(
-    `[httpBridge] ${method} ${path}`,
-    body !== undefined ? JSON.stringify(redactForLog(body)).slice(0, 500) : '(no body)'
-  );
+  log.debug(`${method} ${path}`, body !== undefined ? JSON.stringify(redactForLog(body)).slice(0, 500) : '(no body)');
 
   const response = await fetch(url, {
     method,
@@ -197,14 +200,14 @@ export async function httpRequest<T>(
       errorBody = await response.text();
     }
     if (options?.silentStatuses?.includes(response.status)) {
-      console.debug(`[httpBridge] ${method} ${path} → ${response.status} (silenced)`, errorBody);
+      log.debug(`${method} ${path} → ${response.status} (silenced)`, errorBody);
     } else {
-      console.error(`[httpBridge] ${method} ${path} → ${response.status}`, errorBody);
+      log.error(`${method} ${path} → ${response.status}`, errorBody);
     }
     throw new BackendHttpError({ method, path, status: response.status, body: errorBody });
   }
 
-  console.debug(`[httpBridge] ${method} ${path} → ${response.status} OK`);
+  log.debug(`${method} ${path} → ${response.status} OK`);
 
   const contentType = response.headers.get('Content-Type');
   if (!contentType?.includes('application/json')) {
@@ -316,7 +319,7 @@ export function stubProvider<Data, Params = undefined>(name: string, defaultValu
   return {
     provider: () => {},
     invoke: (async (_params?: Params) => {
-      console.warn(`[httpBridge] stub: ${name} not yet implemented in backend`);
+      log.warn(`stub: ${name} not yet implemented in backend`);
       return defaultValue;
     }) as ProviderLike<Data, Params>['invoke'],
   };
@@ -334,20 +337,20 @@ let wsReconnectAttempt = 0;
 
 function ensureWs(): void {
   if (typeof window === 'undefined') {
-    console.debug('[ensureWs] skipped: no window');
+    ensureWsLog.debug('skipped: no window');
     return;
   }
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-    console.debug('[ensureWs] skipped: already open/connecting, readyState=', ws.readyState);
+    ensureWsLog.debug('skipped: already open/connecting, readyState=', ws.readyState);
     return;
   }
 
   const url = getWsUrl();
-  console.debug('[ensureWs] connecting to', url);
+  ensureWsLog.debug('connecting to', url);
   try {
     ws = new WebSocket(url);
   } catch (e) {
-    console.error('[ensureWs] WebSocket constructor threw:', e);
+    ensureWsLog.error('WebSocket constructor threw:', e);
     scheduleWsReconnect();
     return;
   }
@@ -355,18 +358,18 @@ function ensureWs(): void {
   const current = ws;
 
   current.addEventListener('open', () => {
-    console.debug('[ensureWs] CONNECTED');
+    ensureWsLog.debug('CONNECTED');
     wsReconnectAttempt = 0;
   });
 
   current.addEventListener('close', (e) => {
-    console.debug('[ensureWs] CLOSED code=' + e.code + ' reason=' + e.reason);
+    ensureWsLog.debug('CLOSED code=' + e.code + ' reason=' + e.reason);
     if (ws === current) ws = null;
     scheduleWsReconnect();
   });
 
   current.addEventListener('error', (e) => {
-    console.error('[ensureWs] ERROR', e);
+    ensureWsLog.error('ERROR', e);
     current.close();
   });
 
@@ -380,7 +383,7 @@ function ensureWs(): void {
       };
       const eventName = msg.name ?? msg.event;
       const payload = msg.data ?? msg.payload;
-      console.debug('[WS:msg]', eventName, JSON.stringify(payload).slice(0, 200));
+      wsMsgLog.debug(eventName, JSON.stringify(payload).slice(0, 200));
       if (eventName) {
         const handlers = wsListeners.get(eventName);
         if (handlers) {

@@ -1,6 +1,7 @@
 import type { IProvider } from '@/common/config/storage';
 import ModalHOC from '@/renderer/utils/ui/ModalHOC';
-import { Form, Input, Message, Select, Tag } from '@arco-design/web-react';
+import { Form, Input, Select, Tag } from '@arco-design/web-react';
+import { useMessage } from '@/renderer/hooks/useMessage';
 import React, { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import AionModal from '@/renderer/components/base/AionModal';
@@ -25,7 +26,7 @@ const EditModeModal = ModalHOC<{ data?: IProvider; onChange(data: IProvider): vo
     const { t } = useTranslation();
     const { data } = props;
     const [form] = Form.useForm();
-    const [message, messageContext] = Message.useMessage();
+    const [message, messageContext] = useMessage();
 
     // Watch bedrockAuthMethod only for UI conditional rendering (not for auto-refresh)
     const bedrockAuthMethod = Form.useWatch('bedrockAuthMethod', form);

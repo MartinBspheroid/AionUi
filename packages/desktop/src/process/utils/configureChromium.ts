@@ -10,7 +10,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import os from 'os';
 import { getDevAppName } from '@/common/platform';
+import { createLogger } from '@/common/log';
 import { applyGpuRecoveryFlags } from './gpuRecovery';
+
+const log = createLogger('CDP');
 
 // ============ Environment Separation ============
 // Set app name before any getPath() call so userData is isolated from production.
@@ -130,7 +133,7 @@ function writeRegistry(entries: CdpRegistryEntry[]): void {
     fs.writeFileSync(CDP_REGISTRY_FILE, JSON.stringify(entries, null, 2), 'utf-8');
   } catch {
     // Non-critical — log but don't crash
-    console.warn('[CDP] Failed to write CDP registry file');
+    log.warn('Failed to write CDP registry file');
   }
 }
 
@@ -163,19 +166,19 @@ function findAvailablePort(preferredPort: number): number {
     return preferredPort;
   }
 
-  console.log(
-    `[CDP] Port ${preferredPort} is occupied by another AionUi instance, scanning range ${CDP_PORT_RANGE_START}-${CDP_PORT_RANGE_END}`
+  log.info(
+    `Port ${preferredPort} is occupied by another AionUi instance, scanning range ${CDP_PORT_RANGE_START}-${CDP_PORT_RANGE_END}`
   );
 
   for (let p = CDP_PORT_RANGE_START; p <= CDP_PORT_RANGE_END; p++) {
     if (!usedPorts.has(p)) {
-      console.log(`[CDP] Found available port from registry: ${p}`);
+      log.info(`Found available port from registry: ${p}`);
       return p;
     }
   }
 
-  console.warn(
-    `[CDP] All ports in range ${CDP_PORT_RANGE_START}-${CDP_PORT_RANGE_END} are used by active AionUi instances, trying ${preferredPort}`
+  log.warn(
+    `All ports in range ${CDP_PORT_RANGE_START}-${CDP_PORT_RANGE_END} are used by active AionUi instances, trying ${preferredPort}`
   );
   return preferredPort;
 }
@@ -239,7 +242,7 @@ export function saveCdpConfig(config: CdpConfig): void {
     const configPath = path.join(userDataPath, CDP_CONFIG_FILE);
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
   } catch (error) {
-    console.warn('[CDP] Failed to save CDP config:', error);
+    log.warn('Failed to save CDP config:', error);
   }
 }
 
@@ -314,10 +317,10 @@ if (cdpStartupEnabled) {
   registerInstance(port);
 
   // Log CDP initialization
-  console.log('[CDP] Chrome DevTools Protocol enabled');
-  console.log(`[CDP] Remote debugging port: ${port}`);
-  console.log(`[CDP] DevTools URL: http://127.0.0.1:${port}`);
-  console.log('[CDP] MCP chrome-devtools connection: --browser-url=http://127.0.0.1:' + port);
+  log.info('Chrome DevTools Protocol enabled');
+  log.info(`Remote debugging port: ${port}`);
+  log.info(`DevTools URL: http://127.0.0.1:${port}`);
+  log.info('MCP chrome-devtools connection: --browser-url=http://127.0.0.1:' + port);
 
   // Clean up registry on exit - handle multiple exit signals
   const cleanup = () => unregisterInstance();
@@ -329,7 +332,7 @@ if (cdpStartupEnabled) {
     process.on('SIGBREAK', cleanup);
   }
 } else {
-  console.log('[CDP] Chrome DevTools Protocol disabled');
+  log.info('Chrome DevTools Protocol disabled');
 }
 
 /**

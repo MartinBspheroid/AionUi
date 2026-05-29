@@ -14,9 +14,10 @@ import {
   useMcpServerCRUD,
   useMcpOAuth,
 } from '@/renderer/hooks/mcp';
+import type { MessageInstance } from '@/renderer/hooks/useMessage';
 
 interface McpManagementProps {
-  message: ReturnType<typeof import('@arco-design/web-react').Message.useMessage>[0];
+  message: MessageInstance;
 }
 
 const isVisibleMcpServer = (server: IMcpServer) =>
@@ -143,7 +144,7 @@ const McpManagement: React.FC<McpManagementProps> = ({ message }) => {
     const loadAgents = async () => {
       try {
         const agents = await getAgents();
-        setDetectedAgents(agents.map((agent) => ({ backend: agent.backend, name: agent.name })));
+        setDetectedAgents(agents.map((agent) => ({ backend: agent.backend ?? '', name: agent.name })));
       } catch (error) {
         console.error('Failed to load agents:', error);
       }

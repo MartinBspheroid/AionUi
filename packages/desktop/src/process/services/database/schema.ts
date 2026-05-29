@@ -5,6 +5,9 @@
  */
 
 import type { ISqliteDriver } from './drivers/ISqliteDriver';
+import { createLogger } from '@/common/log';
+
+const log = createLogger('Database');
 
 /**
  * Initialize database schema with all tables and indexes
@@ -20,7 +23,7 @@ export function initSchema(db: ISqliteDriver): void {
   try {
     db.pragma('journal_mode = WAL');
   } catch (error) {
-    console.warn('[Database] Failed to enable WAL mode, using default journal mode:', error);
+    log.warn('Failed to enable WAL mode, using default journal mode:', error);
     // Continue with default journal mode if WAL fails
   }
 
@@ -123,7 +126,7 @@ export function initSchema(db: ISqliteDriver): void {
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS idx_tasks_team ON team_tasks(team_id, status)');
 
-  console.log('[Database] Schema initialized successfully');
+  log.info('Schema initialized successfully');
 }
 
 /**

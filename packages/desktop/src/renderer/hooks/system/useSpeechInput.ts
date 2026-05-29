@@ -409,7 +409,7 @@ export const useSpeechInput = ({ locale, onTranscript }: UseSpeechInputOptions) 
         recorder.onerror = null;
         recorder.onstop = null;
       }
-      if (recorder?.state !== 'inactive') {
+      if (recorder && recorder.state !== 'inactive') {
         try {
           recorder.stop();
         } catch {

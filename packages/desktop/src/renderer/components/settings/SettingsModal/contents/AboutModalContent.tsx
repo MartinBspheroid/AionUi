@@ -146,7 +146,7 @@ const AboutModalContent: React.FC = () => {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  if ('url' in item) {
+                  if (item.url !== undefined) {
                     openLink(item.url).catch((error) => console.error('Failed to open link:', error));
                   } else {
                     item.onClick();

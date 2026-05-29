@@ -9,9 +9,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { networkInterfaces } from 'os';
 import { getSystemDir } from './initStorage';
+import { createLogger } from '@/common/log';
 import { httpRequest } from '@/common/adapter/httpBridge';
 import { startWebHost, type WebHostHandle } from '@aionui/web-host';
 import { getDataPath } from './utils';
+
+const log = createLogger('WebUI');
 
 const WEBUI_CONFIG_FILE = 'webui.config.json';
 const DESKTOP_WEBUI_ENABLED_KEY = 'webui.desktop.enabled';
@@ -42,7 +45,7 @@ async function readWebUIDesktopPreferences(): Promise<{
     const port = typeof rawPort === 'number' && rawPort > 0 ? rawPort : undefined;
     return { enabled, allowRemote, port };
   } catch (error) {
-    console.error('[WebUI] Failed to read preferences from backend:', error);
+    log.error('Failed to read preferences from backend:', error);
     return { enabled: false, allowRemote: false, port: undefined };
   }
 }
@@ -51,7 +54,7 @@ async function writeWebUIDesktopEnabled(enabled: boolean): Promise<void> {
   try {
     await httpRequest<void>('PUT', '/api/settings/client', { [DESKTOP_WEBUI_ENABLED_KEY]: enabled });
   } catch (error) {
-    console.error('[WebUI] Failed to reconcile webui.desktop.enabled on backend:', error);
+    log.error('Failed to reconcile webui.desktop.enabled on backend:', error);
   }
 }
 
@@ -277,7 +280,7 @@ export async function stopDesktopWebUI(): Promise<void> {
   try {
     await handle.stop();
   } catch (err) {
-    console.error('[WebUI] stop error:', err);
+    log.error('stop error:', err);
   }
 }
 
@@ -323,14 +326,12 @@ export const restoreDesktopWebUIFromPreferences = async (): Promise<void> => {
 
   try {
     const handle = await startDesktopWebUI({ port: preferredPort, allowRemote });
-    console.log(
-      `[WebUI] Auto-restored from desktop preferences (port=${handle.port}, allowRemote=${handle.allowRemote})`
-    );
+    log.info(`Auto-restored from desktop preferences (port=${handle.port}, allowRemote=${handle.allowRemote})`);
   } catch (error) {
     // Reconcile the persisted preference with reality. Leaving enabled=true
     // means every subsequent launch will silently re-fail the same way, and
     // the Settings page's Switch would render "on" against an empty 25808.
-    console.error('[WebUI] Failed to auto-restore from desktop preferences:', error);
+    log.error('Failed to auto-restore from desktop preferences:', error);
     await writeWebUIDesktopEnabled(false);
   }
 };

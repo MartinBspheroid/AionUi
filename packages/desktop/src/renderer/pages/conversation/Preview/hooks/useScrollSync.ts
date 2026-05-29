@@ -22,13 +22,13 @@ interface UseScrollSyncOptions {
    * 编辑器容器引用
    * Editor container ref
    */
-  editorContainerRef: React.RefObject<HTMLDivElement>;
+  editorContainerRef: React.RefObject<HTMLDivElement | null>;
 
   /**
    * 预览容器引用
    * Preview container ref
    */
-  previewContainerRef: React.RefObject<HTMLDivElement>;
+  previewContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 /**

@@ -7,6 +7,9 @@
 import type { AcpPermissionRequest, PlanUpdate, ToolCallUpdate } from '@/common/types/platform/acpTypes';
 import type { IResponseMessage } from '../adapter/ipcBridge';
 import { uuid } from '../utils';
+import { createLogger } from '@/common/log';
+
+const log = createLogger('transformMessage');
 
 /**
  * 安全的路径拼接函数，兼容Windows和Mac
@@ -526,8 +529,8 @@ export const transformMessage = (message: IResponseMessage): TMessage | undefine
     case 'request_trace': // Request trace events, logged to F12 console (not persisted)
       return undefined;
     default: {
-      console.warn(
-        `[transformMessage] Unsupported message type '${message.type}'. All non-standard message types should be pre-processed by respective AgentManagers.`
+      log.warn(
+        `Unsupported message type '${message.type}'. All non-standard message types should be pre-processed by respective AgentManagers.`
       );
       return undefined;
     }

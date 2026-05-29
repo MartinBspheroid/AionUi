@@ -6,7 +6,8 @@
 
 import { ipcBridge } from '@/common';
 import type { PreviewHistoryTarget, PreviewSnapshotInfo } from '@/common/types/office/preview';
-import { Message } from '@arco-design/web-react';
+import type { Message } from '@arco-design/web-react';
+import { useMessage, type MessageInstance } from '@/renderer/hooks/useMessage';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SNAPSHOT_DEBOUNCE_TIME } from '../constants';
@@ -97,7 +98,7 @@ interface UsePreviewHistoryReturn {
    * Message API 实例（用于显示提示信息）
    * Message API instance (for displaying notifications)
    */
-  messageApi: ReturnType<typeof Message.useMessage>[0];
+  messageApi: MessageInstance;
 
   /**
    * Message Context Holder（需要渲染在组件中）
@@ -122,7 +123,7 @@ export const usePreviewHistory = ({ activeTab, updateContent }: UsePreviewHistor
   const [historyLoading, setHistoryLoading] = useState(false);
   const [snapshotSaving, setSnapshotSaving] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
-  const [messageApi, messageContextHolder] = Message.useMessage();
+  const [messageApi, messageContextHolder] = useMessage();
   const lastSnapshotTimeRef = useRef<number>(0); // 记录上次快照保存时间 / Track last snapshot save time
 
   // 构建历史目标对象 / Build history target object

@@ -5,12 +5,17 @@
  */
 
 import type { IDirOrFile } from '@/common/adapter/ipcBridge';
+import { createLogger } from '@/common/log';
 import { getPlatformServices } from '@/common/platform';
 import { getEnvAwareName } from '@/common/config/appEnv';
 import { existsSync, lstatSync, mkdirSync, readlinkSync, realpathSync, symlinkSync, unlinkSync } from 'fs';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
+
+const log = createLogger('AionUi');
+const utilsLog = createLogger('utils');
+
 export const hasElectronAppPath = (): boolean => {
   return typeof process.versions.electron === 'string';
 };
@@ -161,7 +166,7 @@ export async function readDirectoryRecursive(
       process?: { file: number; dir: number };
     };
   }
-): Promise<IDirOrFile> {
+): Promise<IDirOrFile | null> {
   const { root = dirPath, maxDepth = 1, fileService, search, abortController } = options || {};
   const { text: searchText, onProcess: onSearchProcess = () => {}, process = { file: 0, dir: 1 } } = search || {};
 
@@ -180,7 +185,7 @@ export async function readDirectoryRecursive(
     // Directory may have been deleted (e.g. cleaned-up temp workspace)
     return null;
   }
-  const result: IDirOrFile = {
+  const result: IDirOrFile & { children: IDirOrFile[] } = {
     name: path.basename(dirPath),
     fullPath: dirPath,
     relativePath: path.relative(root, dirPath),
@@ -225,11 +230,13 @@ export async function readDirectoryRecursive(
         root,
         search: {
           ...search,
+          text: searchText ?? '',
           process,
           onProcess(searchResult) {
-            if (searchResult.match) {
-              if (!result.children.find((v) => v.fullPath === searchResult.match.fullPath)) {
-                result.children.push(searchResult.match);
+            const match = searchResult.match;
+            if (match) {
+              if (!result.children.find((v) => v.fullPath === match.fullPath)) {
+                result.children.push(match);
               }
               onSearchProcess({ ...process, match: result });
             }
@@ -362,7 +369,7 @@ export async function verifyDirectoryFiles(dir1: string, dir2: string): Promise<
 
     return true;
   } catch (error) {
-    console.warn('[AionUi] Error verifying directory files:', error);
+    log.warn('Error verifying directory files:', error);
     return false;
   }
 }
@@ -387,8 +394,8 @@ export const copyFilesToDirectory = async (
     try {
       await fs.access(absoluteFilePath);
     } catch (error) {
-      console.warn(`[AionUi] Source file does not exist, skipping: ${absoluteFilePath}`);
-      console.warn(`[AionUi] Original path: ${file}`);
+      log.warn(`Source file does not exist, skipping: ${absoluteFilePath}`);
+      log.warn(`Original path: ${file}`);
       // 跳过不存在的文件，而不是抛出错误
       continue;
     }
@@ -419,7 +426,7 @@ export const copyFilesToDirectory = async (
       await fs.copyFile(absoluteFilePath, destPath);
       copiedFiles.push(destPath);
     } catch (error) {
-      console.error(`[AionUi] Failed to copy file from ${absoluteFilePath} to ${destPath}:`, error);
+      log.error(`Failed to copy file from ${absoluteFilePath} to ${destPath}:`, error);
       // 继续处理其他文件，而不是完全失败
     }
 
@@ -428,7 +435,7 @@ export const copyFilesToDirectory = async (
       try {
         await fs.unlink(absoluteFilePath);
       } catch (error) {
-        console.warn(`Failed to cleanup temp file ${absoluteFilePath}:`, error);
+        utilsLog.warn(`Failed to cleanup temp file ${absoluteFilePath}:`, error);
       }
     }
   }

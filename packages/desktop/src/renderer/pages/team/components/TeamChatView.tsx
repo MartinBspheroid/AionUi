@@ -111,7 +111,7 @@ const TeamChatView: React.FC<TeamChatViewProps> = ({
           <OpenClawChat
             key={conversation.id}
             conversation_id={conversation.id}
-            workspace={conversation.extra?.workspace}
+            workspace={conversation.extra?.workspace ?? ''}
             hideSendBox={hideSendBox}
             emptySlot={emptySlot}
           />
@@ -121,7 +121,7 @@ const TeamChatView: React.FC<TeamChatViewProps> = ({
           <NanobotChat
             key={conversation.id}
             conversation_id={conversation.id}
-            workspace={conversation.extra?.workspace}
+            workspace={conversation.extra?.workspace ?? ''}
             hideSendBox={hideSendBox}
             emptySlot={emptySlot}
           />
@@ -131,7 +131,7 @@ const TeamChatView: React.FC<TeamChatViewProps> = ({
           <RemoteChat
             key={conversation.id}
             conversation_id={conversation.id}
-            workspace={conversation.extra?.workspace}
+            workspace={conversation.extra?.workspace ?? ''}
             hideSendBox={hideSendBox}
             emptySlot={emptySlot}
           />

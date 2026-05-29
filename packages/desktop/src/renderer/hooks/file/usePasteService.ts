@@ -42,7 +42,7 @@ export const usePasteService = ({
 
   // 统一的粘贴事件处理
   const handlePaste = useCallback(
-    async (event: React.ClipboardEvent) => {
+    async (event: React.ClipboardEvent | ClipboardEvent) => {
       // 检查是否有文件，如果有文件立即阻止默认行为
       const files = event.clipboardData?.files;
       if (files && files.length > 0) {

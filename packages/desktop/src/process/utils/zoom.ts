@@ -6,7 +6,10 @@
 
 import { BrowserWindow } from 'electron';
 import type { Input } from 'electron';
+import { createLogger } from '@/common/log';
 import { trackPersistedWrite } from './persistOnQuit';
+
+const log = createLogger('AionUi');
 
 // Default to 95% so the app feels slightly roomier on stock DPI displays
 // without looking cramped for fine text. Users can still reset/zoom with
@@ -94,7 +97,7 @@ export const setupZoomForWindow = (win: BrowserWindow): void => {
         const { ProcessConfig } = await import('./initStorage');
         await ProcessConfig.set('ui.zoomFactor', factor);
       } catch (error) {
-        console.error('[AionUi] Failed to persist zoom factor from keyboard shortcut:', error);
+        log.error('Failed to persist zoom factor from keyboard shortcut:', error);
       }
     })();
     trackPersistedWrite(op);

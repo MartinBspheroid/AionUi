@@ -7,15 +7,15 @@ import type { FileOrFolderItem } from '@/renderer/utils/file/fileTypes';
  * 创建通用的setUploadFile函数
  * 支持函数式更新，避免闭包陷阱
  */
-export const createSetUploadFile = (
-  mutate: (fn: (prev: Record<string, unknown> | undefined) => Record<string, unknown>) => void,
+export const createSetUploadFile = <Draft extends { uploadFile: string[] }>(
+  mutate: (fn: (prev: Draft) => Draft | undefined) => void,
   data: unknown
 ) => {
   return useCallback(
     (uploadFile: string[] | ((prev: string[]) => string[])) => {
       mutate((prev) => {
         // 取出最新的上传文件列表，保证函数式更新正确 / Derive latest upload list to keep functional updates accurate
-        const previousUploadFile = Array.isArray(prev?.uploadFile) ? (prev?.uploadFile as string[]) : [];
+        const previousUploadFile = Array.isArray(prev?.uploadFile) ? prev.uploadFile : [];
         const newUploadFile = typeof uploadFile === 'function' ? uploadFile(previousUploadFile) : uploadFile;
         return { ...prev, uploadFile: newUploadFile };
       });

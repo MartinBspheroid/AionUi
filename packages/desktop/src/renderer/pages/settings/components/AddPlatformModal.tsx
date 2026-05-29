@@ -4,7 +4,8 @@ import { ipcBridge } from '@/common';
 import { uuid } from '@/common/utils';
 import { isGoogleApisHost } from '@/common/utils/urlValidation';
 import ModalHOC from '@/renderer/utils/ui/ModalHOC';
-import { Form, Input, Message, Select, Switch } from '@arco-design/web-react';
+import { Form, Input, Select, Switch } from '@arco-design/web-react';
+import { useMessage } from '@/renderer/hooks/useMessage';
 import { LinkCloud, Edit, Search, Loading } from '@icon-park/react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -209,7 +210,7 @@ const AddPlatformModal = ModalHOC<{
   onSubmit: (platform: IProvider) => void;
   deepLinkData?: DeepLinkAddProviderDetail;
 }>(({ modalProps, onSubmit, modalCtrl, deepLinkData }) => {
-  const [message, messageContext] = Message.useMessage();
+  const [message, messageContext] = useMessage();
   const { t } = useTranslation();
   const [form] = Form.useForm();
   const [api_keyEditorVisible, setApiKeyEditorVisible] = useState(false);

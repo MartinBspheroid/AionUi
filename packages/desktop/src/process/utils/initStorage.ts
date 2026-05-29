@@ -8,6 +8,7 @@ import { mkdirSync as _mkdirSync, existsSync, readdirSync, readFileSync } from '
 import fs from 'fs/promises';
 import path from 'path';
 import { getPlatformServices } from '@/common/platform';
+import { createLogger } from '@/common/log';
 import { application } from '@/common/adapter/ipcBridge';
 import type { TMessage } from '@/common/chat/chatLib';
 import type {
@@ -34,6 +35,10 @@ type PlatformType = 'win32' | 'darwin' | 'linux';
 type ArchitectureType = 'x64' | 'arm64' | 'ia32' | 'arm';
 
 const nodePath = path;
+
+const log = createLogger('AionUi');
+const initLog = log.child('init');
+const storageLog = createLogger('Storage');
 
 const STORAGE_PATH = {
   config: 'aionui-config.txt',
@@ -70,7 +75,7 @@ const migrateLegacyData = async () => {
         try {
           return existsSync(newDir) && readdirSync(newDir).length === 0;
         } catch (error) {
-          console.warn('[AionUi] Warning: Could not read new directory during migration check:', error);
+          log.warn('Warning: Could not read new directory during migration check:', error);
           return false; // 假设非空以避免迁移覆盖
         }
       })();
@@ -91,7 +96,7 @@ const migrateLegacyData = async () => {
           try {
             await fs.rm(oldDir, { recursive: true });
           } catch (cleanupError) {
-            console.warn('[AionUi] 原目录清理失败，请手动删除:', oldDir, cleanupError);
+            log.warn('原目录清理失败，请手动删除:', oldDir, cleanupError);
           }
         }
       }
@@ -99,7 +104,7 @@ const migrateLegacyData = async () => {
       return true;
     }
   } catch (error) {
-    console.error('[AionUi] 数据迁移失败:', error);
+    log.error('数据迁移失败:', error);
   }
 
   return false;
@@ -138,7 +143,7 @@ const JsonFileBuilder = <S extends object = Record<string, unknown>>(file_path: 
       if (!decoded || decoded.trim() === '') return {} as S;
       const parsed = JSON.parse(decoded) as S;
       if (file_path.includes('chat.txt') && Object.keys(parsed).length === 0) {
-        console.warn(`[Storage] Chat history file appears to be empty: ${file_path}`);
+        storageLog.warn(`Chat history file appears to be empty: ${file_path}`);
       }
       return parsed;
     } catch {
@@ -166,7 +171,7 @@ const JsonFileBuilder = <S extends object = Record<string, unknown>>(file_path: 
     return writeOp.then(
       () => data,
       (err) => {
-        console.error(`[Storage] Failed to persist ${file_path}:`, err);
+        storageLog.error(`Failed to persist ${file_path}:`, err);
         throw err;
       }
     );
@@ -226,7 +231,7 @@ const JsonFileBuilder = <S extends object = Record<string, unknown>>(file_path: 
       return backupOp.then(
         () => {},
         (err) => {
-          console.error(`[Storage] Backup failed:`, err);
+          storageLog.error(`Backup failed:`, err);
           throw err;
         }
       );
@@ -315,7 +320,7 @@ const cleanupLegacyBuiltinSkillsDir = () => {
   const legacyDir = path.join(cacheDir, LEGACY_BUILTIN_SKILLS_DIR);
   if (!existsSync(legacyDir)) return;
   fs.rm(legacyDir, { recursive: true, force: true })
-    .then(() => console.log('[AionUi] Cleaned up legacy builtin-skills cache'))
+    .then(() => log.info('Cleaned up legacy builtin-skills cache'))
     .catch(() => {
       /* swallow — cleanup is not critical */
     });
@@ -365,7 +370,7 @@ const getBuiltinMcpScriptPath = (scriptName: string): string => {
 
 const initStorage = async () => {
   const t0 = performance.now();
-  const mark = (label: string) => console.log(`[AionUi:init] ${label} +${Math.round(performance.now() - t0)}ms`);
+  const mark = (label: string) => initLog.info(`${label} +${Math.round(performance.now() - t0)}ms`);
   mark('start');
 
   // 1. 先执行数据迁移（在任何目录创建之前）
@@ -393,7 +398,7 @@ const initStorage = async () => {
     await ensureAssistantDirs();
     mark('5. ensureAssistantDirs');
   } catch (error) {
-    console.error('[AionUi] Failed to ensure assistant dirs:', error);
+    log.error('Failed to ensure assistant dirs:', error);
   }
 
   // 5b. Best-effort cleanup of the legacy builtin-skills cache left behind

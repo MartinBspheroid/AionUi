@@ -7,6 +7,10 @@
  * 打包应用的密码重置命令行工具
  */
 
+import { createLogger } from '@/common/log';
+
+const resetPasswordLog = createLogger('resetPasswordCLI');
+
 // Color output
 const colors = {
   reset: '\x1b[0m',
@@ -19,11 +23,11 @@ const colors = {
 };
 
 const log = {
-  info: (msg: string) => console.log(`${colors.blue}i${colors.reset} ${msg}`),
-  success: (msg: string) => console.log(`${colors.green}OK${colors.reset} ${msg}`),
-  error: (msg: string) => console.log(`${colors.red}ERR${colors.reset} ${msg}`),
-  warning: (msg: string) => console.log(`${colors.yellow}WARN${colors.reset} ${msg}`),
-  highlight: (msg: string) => console.log(`${colors.cyan}${colors.bright}${msg}${colors.reset}`),
+  info: (msg: string) => resetPasswordLog.info(`${colors.blue}i${colors.reset} ${msg}`),
+  success: (msg: string) => resetPasswordLog.info(`${colors.green}OK${colors.reset} ${msg}`),
+  error: (msg: string) => resetPasswordLog.info(`${colors.red}ERR${colors.reset} ${msg}`),
+  warning: (msg: string) => resetPasswordLog.info(`${colors.yellow}WARN${colors.reset} ${msg}`),
+  highlight: (msg: string) => resetPasswordLog.info(`${colors.cyan}${colors.bright}${msg}${colors.reset}`),
 };
 
 export function resolveResetPasswordUsername(argv: string[]): string {

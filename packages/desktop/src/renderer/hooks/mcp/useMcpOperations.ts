@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { mcpService } from '@/common/adapter/ipcBridge';
 import type { IMcpServer } from '@/common/config/storage';
 import { globalMessageQueue } from './messageQueue';
+import type { MessageInstance } from '@/renderer/hooks/useMessage';
 
 /**
  * 截断过长的错误消息，保持可读性
@@ -31,10 +32,7 @@ interface McpOperationResponse {
  * MCP操作管理Hook
  * 处理MCP服务器与agents之间的同步和移除操作
  */
-export const useMcpOperations = (
-  mcpServers: IMcpServer[],
-  message: ReturnType<typeof import('@arco-design/web-react').Message.useMessage>[0]
-) => {
+export const useMcpOperations = (mcpServers: IMcpServer[], message: MessageInstance) => {
   const { t } = useTranslation();
 
   // 处理MCP配置同步到agents的结果

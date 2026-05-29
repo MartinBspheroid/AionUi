@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { type Components } from 'react-markdown';
 
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
@@ -72,60 +72,61 @@ const MarkdownView: React.FC<MarkdownViewProps> = React.memo(
     // Without this, every streaming update creates new function references → React
     // unmounts/remounts all custom components → hooks & DOM state are lost.
     const components = useMemo(
-      () => ({
-        span: ({ node: _node, className: cn, children: ch, ...rest }: Record<string, unknown>) => (
-          <span {...(rest as React.HTMLAttributes<HTMLSpanElement>)} className={cn as string}>
-            {ch as React.ReactNode}
-          </span>
-        ),
-        code: (props: Record<string, unknown>) => (
-          <CodeBlock
-            {...(props as Parameters<typeof CodeBlock>[0])}
-            codeStyle={codeStyle}
-            hiddenCodeCopyButton={hiddenCodeCopyButton}
-          />
-        ),
-        a: ({ node: _node, ...rest }: Record<string, unknown>) => (
-          <a
-            {...(rest as React.AnchorHTMLAttributes<HTMLAnchorElement>)}
-            target='_blank'
-            rel='noreferrer'
-            onClick={handleLinkClick}
-          />
-        ),
-        table: ({ node: _node, ...rest }: Record<string, unknown>) => (
-          <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
-            <table
-              {...(rest as React.TableHTMLAttributes<HTMLTableElement>)}
+      () =>
+        ({
+          span: ({ node: _node, className: cn, children: ch, ...rest }: Record<string, unknown>) => (
+            <span {...(rest as React.HTMLAttributes<HTMLSpanElement>)} className={cn as string}>
+              {ch as React.ReactNode}
+            </span>
+          ),
+          code: (props: Record<string, unknown>) => (
+            <CodeBlock
+              {...(props as Parameters<typeof CodeBlock>[0])}
+              codeStyle={codeStyle}
+              hiddenCodeCopyButton={hiddenCodeCopyButton}
+            />
+          ),
+          a: ({ node: _node, ...rest }: Record<string, unknown>) => (
+            <a
+              {...(rest as React.AnchorHTMLAttributes<HTMLAnchorElement>)}
+              target='_blank'
+              rel='noreferrer'
+              onClick={handleLinkClick}
+            />
+          ),
+          table: ({ node: _node, ...rest }: Record<string, unknown>) => (
+            <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
+              <table
+                {...(rest as React.TableHTMLAttributes<HTMLTableElement>)}
+                style={{
+                  ...(rest as { style?: React.CSSProperties }).style,
+                  borderCollapse: 'collapse',
+                  border: '1px solid var(--bg-3)',
+                  minWidth: '100%',
+                }}
+              />
+            </div>
+          ),
+          td: ({ node: _node, ...rest }: Record<string, unknown>) => (
+            <td
+              {...(rest as React.TdHTMLAttributes<HTMLTableCellElement>)}
               style={{
                 ...(rest as { style?: React.CSSProperties }).style,
-                borderCollapse: 'collapse',
+                padding: '8px',
                 border: '1px solid var(--bg-3)',
-                minWidth: '100%',
+                minWidth: '120px',
               }}
             />
-          </div>
-        ),
-        td: ({ node: _node, ...rest }: Record<string, unknown>) => (
-          <td
-            {...(rest as React.TdHTMLAttributes<HTMLTableCellElement>)}
-            style={{
-              ...(rest as { style?: React.CSSProperties }).style,
-              padding: '8px',
-              border: '1px solid var(--bg-3)',
-              minWidth: '120px',
-            }}
-          />
-        ),
-        img: ({ node: _node, ...rest }: Record<string, unknown>) => {
-          const imgProps = rest as React.ImgHTMLAttributes<HTMLImageElement>;
-          if (isLocalFilePath(imgProps.src || '')) {
-            const src = decodeURIComponent(imgProps.src || '');
-            return <LocalImageView src={src} alt={imgProps.alt || ''} className={imgProps.className} />;
-          }
-          return <img {...imgProps} />;
-        },
-      }),
+          ),
+          img: ({ node: _node, ...rest }: Record<string, unknown>) => {
+            const imgProps = rest as React.ImgHTMLAttributes<HTMLImageElement>;
+            if (isLocalFilePath(imgProps.src || '')) {
+              const src = decodeURIComponent(imgProps.src || '');
+              return <LocalImageView src={src} alt={imgProps.alt || ''} className={imgProps.className} />;
+            }
+            return <img {...imgProps} />;
+          },
+        }) as Components,
       [codeStyle, hiddenCodeCopyButton, handleLinkClick]
     );
 

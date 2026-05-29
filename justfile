@@ -322,12 +322,16 @@ i18n-check:
     bun run i18n:types
     node scripts/check-i18n.js
 
-# Run all checks (lint + format + typecheck + i18n) — mirrors CI code-quality job
-check: lint fmt-check typecheck i18n-check
+# Guard against runaway file sizes (warn >600, fail >1000 lines)
+file-size-check:
+    node scripts/check-file-size.js
 
-# Pre-push gate: lint + format check + typecheck + i18n + test, then push
+# Run all checks (lint + format + typecheck + i18n + file size) — mirrors CI code-quality job
+check: lint fmt-check typecheck i18n-check file-size-check
+
+# Pre-push gate: lint + format check + typecheck + i18n + file size + test, then push
 # Uses --quiet to suppress warnings (exit code is still non-zero on errors)
-push *ARGS: lint-strict fmt-check typecheck i18n-check test
+push *ARGS: lint-strict fmt-check typecheck i18n-check file-size-check test
     git push {{ ARGS }}
 
 # Lint with only errors reported (for CI/push gates)

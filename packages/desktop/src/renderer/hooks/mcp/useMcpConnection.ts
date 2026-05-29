@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { mcpService } from '@/common/adapter/ipcBridge';
 import type { IMcpServer } from '@/common/config/storage';
 import { globalMessageQueue } from './messageQueue';
+import type { MessageInstance } from '@/renderer/hooks/useMessage';
 
 /**
  * 截断过长的错误消息，保持可读性
@@ -22,7 +23,7 @@ const truncateErrorMessage = (message: string, maxLength: number = 150): string 
  */
 export const useMcpConnection = (
   setMcpServers: React.Dispatch<React.SetStateAction<IMcpServer[]>>,
-  message: ReturnType<typeof import('@arco-design/web-react').Message.useMessage>[0],
+  message: MessageInstance,
   onAuthRequired?: (server: IMcpServer) => void // 新增：当需要认证时的回调
 ) => {
   const { t } = useTranslation();

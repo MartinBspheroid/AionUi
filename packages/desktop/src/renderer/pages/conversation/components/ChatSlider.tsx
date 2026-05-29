@@ -5,14 +5,14 @@
  */
 
 import type { TChatConversation } from '@/common/config/storage';
-import { Message } from '@arco-design/web-react';
+import { useMessage } from '@/renderer/hooks/useMessage';
 import React from 'react';
 import ChatWorkspace from '../Workspace';
 
 const ChatSlider: React.FC<{
   conversation?: TChatConversation;
 }> = ({ conversation }) => {
-  const [messageApi, messageContext] = Message.useMessage({ maxCount: 1 });
+  const [messageApi, messageContext] = useMessage({ maxCount: 1 });
 
   let workspaceNode: React.ReactNode = null;
   if (conversation?.type === 'acp' && conversation.extra?.workspace) {

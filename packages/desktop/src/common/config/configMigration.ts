@@ -1,10 +1,12 @@
 import { ipcBridge } from '@/common';
 import { httpRequest } from '@/common/adapter/httpBridge';
+import { createLogger } from '@/common/log';
 import type { CreateProviderRequest } from '@/common/types/provider/providerApi';
-
 import type { ConfigKey, ConfigKeyMap } from './configKeys';
 import type { IConfigStorageRefer, IMcpServer } from './storage';
 import { BUILTIN_IMAGE_GEN_ID, BUILTIN_IMAGE_GEN_LEGACY_NAMES, BUILTIN_IMAGE_GEN_NAME } from './storage';
+
+const log = createLogger('Migration');
 
 export type ConfigFile = {
   get<K extends keyof IConfigStorageRefer>(key: K): Promise<IConfigStorageRefer[K]>;
@@ -87,7 +89,7 @@ export async function migrateConfigStorage(configFile: ConfigFile): Promise<void
   }
 
   if (Object.keys(entries).length === 0) {
-    console.info('[Migration] configStorage migration skipped — no legacy keys found');
+    log.info('configStorage migration skipped — no legacy keys found');
     return;
   }
 
@@ -103,17 +105,11 @@ export async function migrateConfigStorage(configFile: ConfigFile): Promise<void
 
   if (Object.keys(newEntries).length > 0) {
     await setBackendClientPreferences(newEntries);
-    console.info(
-      '[Migration] configStorage migration completed, migrated %d/%d keys (skipped %d existing)',
-      Object.keys(newEntries).length,
-      Object.keys(entries).length,
-      Object.keys(entries).length - Object.keys(newEntries).length
+    log.info(
+      `configStorage migration completed, migrated ${Object.keys(newEntries).length}/${Object.keys(entries).length} keys (skipped ${Object.keys(entries).length - Object.keys(newEntries).length} existing)`
     );
   } else {
-    console.info(
-      '[Migration] configStorage migration skipped — all %d keys already exist in backend',
-      Object.keys(entries).length
-    );
+    log.info(`configStorage migration skipped — all ${Object.keys(entries).length} keys already exist in backend`);
   }
 }
 
@@ -125,7 +121,7 @@ export async function migrateLegacyMcpConfigToDb(configFile: ConfigFile): Promis
   const legacyServers = Array.isArray(backendLegacy) ? backendLegacy : Array.isArray(fileLegacy) ? fileLegacy : [];
 
   if (legacyServers.length === 0) {
-    console.info('[Migration] legacy MCP migration skipped — no legacy servers found');
+    log.info('legacy MCP migration skipped — no legacy servers found');
     return;
   }
 
@@ -134,11 +130,8 @@ export async function migrateLegacyMcpConfigToDb(configFile: ConfigFile): Promis
   const importableServers = legacyServers.filter(isImportableMcpServer).map(normalizeLegacyMcpServer);
   const missing = importableServers.filter((server) => !existingNames.has(server.name));
 
-  console.info(
-    '[Migration] legacy MCP migration found %d servers, importing %d missing, skipping %d existing',
-    legacyServers.length,
-    missing.length,
-    legacyServers.length - missing.length
+  log.info(
+    `legacy MCP migration found ${legacyServers.length} servers, importing ${missing.length} missing, skipping ${legacyServers.length - missing.length} existing`
   );
 
   if (missing.length > 0) {
@@ -250,7 +243,7 @@ export async function migrateProviders(configFile: ConfigFile): Promise<void> {
     // flag at the end of a successful pass.
   }
   if (alreadyMigrated) {
-    console.info('[Migration] providers migration skipped — completion flag already set');
+    log.info('providers migration skipped — completion flag already set');
     return;
   }
 
@@ -260,7 +253,7 @@ export async function migrateProviders(configFile: ConfigFile): Promise<void> {
       'model.config' as keyof IConfigStorageRefer
     )) as unknown as LegacyProvider[];
   } catch (err) {
-    console.info('[Migration] providers migration skipped — no model.config in config file', err);
+    log.info('providers migration skipped — no model.config in config file', err);
     // Nothing to migrate ever again on this machine — flag it so future launches
     // skip the read entirely and we don't risk a stray legacy file appearing later
     // (e.g. via a settings restore from backup) re-injecting deleted providers.
@@ -269,7 +262,7 @@ export async function migrateProviders(configFile: ConfigFile): Promise<void> {
   }
 
   if (!legacyProviders || !Array.isArray(legacyProviders) || legacyProviders.length === 0) {
-    console.info('[Migration] providers migration skipped — model.config is empty or invalid');
+    log.info('providers migration skipped — model.config is empty or invalid');
     await markProvidersMigrationDone(configFile);
     return;
   }
@@ -279,19 +272,14 @@ export async function migrateProviders(configFile: ConfigFile): Promise<void> {
 
   const newProviders = legacyProviders.filter((p) => !existingIds.has(p.id));
   if (newProviders.length === 0) {
-    console.info(
-      '[Migration] providers migration skipped — all %d legacy providers already exist in backend',
-      legacyProviders.length
-    );
+    log.info(`providers migration skipped — all ${legacyProviders.length} legacy providers already exist in backend`);
     // Backend already has every legacy id — migration is effectively done.
     await markProvidersMigrationDone(configFile);
     return;
   }
 
-  console.info(
-    '[Migration] found %d new legacy providers to migrate (skipping %d existing)',
-    newProviders.length,
-    legacyProviders.length - newProviders.length
+  log.info(
+    `found ${newProviders.length} new legacy providers to migrate (skipping ${legacyProviders.length - newProviders.length} existing)`
   );
 
   const requests = newProviders.map((legacy) => ({
@@ -330,10 +318,10 @@ export async function migrateProviders(configFile: ConfigFile): Promise<void> {
       return;
     }
     failed += 1;
-    console.warn('[Migration] failed to create provider %s:', requests[index].legacy.id, result.reason);
+    log.warn(`failed to create provider ${requests[index].legacy.id}:`, result.reason);
   });
 
-  console.info('[Migration] providers migration completed, migrated %d/%d providers', migrated, newProviders.length);
+  log.info(`providers migration completed, migrated ${migrated}/${newProviders.length} providers`);
 
   // Only set the completion flag on a fully clean pass. A partial failure
   // (e.g. backend returned 5xx for one provider) leaves the flag unset so the
@@ -351,7 +339,7 @@ async function markProvidersMigrationDone(configFile: ConfigFile): Promise<void>
   } catch (err) {
     // Failure to persist the flag is non-fatal — worst case the migration
     // re-runs next launch and the existing-by-id filter makes it a no-op.
-    console.warn('[Migration] failed to persist providers migration flag', err);
+    log.warn('failed to persist providers migration flag', err);
   }
 }
 

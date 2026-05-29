@@ -79,7 +79,11 @@ const AionrsModelSelector: React.FC<{
                   <Menu.Item
                     key={`${provider.id}-${modelName}`}
                     data-testid={`aionrs-model-option-${modelName}`}
-                    className={current_model?.id + current_model?.use_model === provider.id + modelName ? '!bg-2' : ''}
+                    className={
+                      (current_model?.id ?? '') + (current_model?.use_model ?? '') === provider.id + modelName
+                        ? '!bg-2'
+                        : ''
+                    }
                     onClick={() => void handleSelectModel(provider, modelName)}
                   >
                     <div className='flex items-center gap-8px w-full'>

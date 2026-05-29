@@ -5,6 +5,9 @@
  */
 
 import { AuthType } from '@office-ai/aioncli-core';
+import { createLogger } from '@/common/log';
+
+const log = createLogger('MultiKey');
 
 /**
  * Multi-API Key Manager with Time-based Blacklisting
@@ -82,13 +85,11 @@ export class ApiKeyManager {
       const previousIndex = this.currentIndex;
       this.currentIndex = availableIndex;
       this.updateEnvironment();
-      console.log(
-        `[MultiKey] Rotated ${this.authType}: #${previousIndex + 1} → #${this.currentIndex + 1}/${this.keys.length}`
-      );
+      log.info(`Rotated ${this.authType}: #${previousIndex + 1} → #${this.currentIndex + 1}/${this.keys.length}`);
       return true;
     }
 
-    console.log(`[MultiKey] All keys blacklisted for ${this.authType}, falling back`);
+    log.info(`All keys blacklisted for ${this.authType}, falling back`);
     return false;
   }
 
@@ -100,9 +101,7 @@ export class ApiKeyManager {
     this.blacklistedUntil.set(this.currentIndex, recoveryTime);
 
     const recoveryDate = new Date(recoveryTime);
-    console.log(
-      `[MultiKey] Blacklisted ${this.authType} key #${this.currentIndex + 1} until ${recoveryDate.toLocaleTimeString()}`
-    );
+    log.info(`Blacklisted ${this.authType} key #${this.currentIndex + 1} until ${recoveryDate.toLocaleTimeString()}`);
   }
 
   /**
@@ -115,7 +114,7 @@ export class ApiKeyManager {
     if (Date.now() >= blacklistedUntil) {
       // Blacklist period expired, remove from blacklist
       this.blacklistedUntil.delete(index);
-      console.log(`[MultiKey] ${this.authType} key #${index + 1} recovered from blacklist`);
+      log.info(`${this.authType} key #${index + 1} recovered from blacklist`);
       return true;
     }
 

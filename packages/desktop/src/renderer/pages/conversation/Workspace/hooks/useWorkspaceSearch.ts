@@ -53,7 +53,7 @@ export function useWorkspaceSearch({ workspace, loadWorkspace }: UseWorkspaceSea
   const onSearch = useDebounce(
     (value: string) => {
       void loadWorkspace(workspace, value).then((files) => {
-        setShowSearch(files.length > 0 && files[0]?.children?.length > 0);
+        setShowSearch(files.length > 0 && (files[0]?.children?.length ?? 0) > 0);
       });
     },
     200,

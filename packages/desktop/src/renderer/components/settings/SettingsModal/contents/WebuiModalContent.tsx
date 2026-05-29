@@ -270,7 +270,7 @@ const WebuiModalContent: React.FC = () => {
           allowRemote: allowRemotePreference,
           localUrl,
           networkUrl: allowRemotePreference && responseIP ? `http://${responseIP}:${port}` : undefined,
-          lanIP: responseIP,
+          lanIP: responseIP ?? undefined,
           initialPassword: responsePassword || cachedPassword || prev?.initialPassword,
         }));
 

@@ -5,6 +5,7 @@
  */
 
 import { migrateConfigStorage, migrateLegacyMcpConfigToDb, migrateProviders } from '@/common/config/configMigration';
+import { createLogger } from '@/common/log';
 import { httpRequest } from '@/common/adapter/httpBridge';
 import { mcpService } from '@/common/adapter/ipcBridge';
 import type { ConfigKeyMap } from '@/common/config/configKeys';
@@ -16,6 +17,9 @@ import {
 import { BUILTIN_IMAGE_GEN_NAME, type IMcpServer, type IProvider } from '@/common/config/storage';
 import { getBuiltinMcpScriptPath, type ProcessConfig as ProcessConfigType } from './initStorage';
 import { migrateAssistantsToBackend } from './migrateAssistants';
+
+const log = createLogger('AionUi');
+const migrationLog = createLogger('Migration');
 
 type ConfigFile = typeof ProcessConfigType;
 type MigrationStepResult = boolean;
@@ -54,7 +58,7 @@ async function fetchProviders(): Promise<IProvider[]> {
   try {
     return (await httpRequest<IProvider[]>('GET', '/api/providers')) || [];
   } catch (error) {
-    console.warn('[Migration] MCP bootstrap could not load providers for image generation env resolution', error);
+    migrationLog.warn('MCP bootstrap could not load providers for image generation env resolution', error);
     return [];
   }
 }
@@ -86,24 +90,14 @@ function logImageGenerationEnvResolution(
   context: 'bootstrap' | 'update'
 ): void {
   if (result.ok === true) {
-    console.info(
-      '[Migration] image MCP env resolved via %s during %s, provider id: %s, platform: %s, model: %s, api key present: %s',
-      result.source,
-      context,
-      result.provider.id,
-      result.provider.platform,
-      result.model,
-      result.provider.api_key ? 'yes' : 'no'
+    migrationLog.info(
+      `image MCP env resolved via ${result.source} during ${context}, provider id: ${result.provider.id}, platform: ${result.provider.platform}, model: ${result.model}, api key present: ${result.provider.api_key ? 'yes' : 'no'}`
     );
     return;
   }
 
-  console.warn(
-    '[Migration] image MCP env resolution failed during %s, reason: %s, message: %s, candidates: %s',
-    context,
-    result.reason,
-    result.message,
-    result.candidates?.join(',') || 'none'
+  migrationLog.warn(
+    `image MCP env resolution failed during ${context}, reason: ${result.reason}, message: ${result.message}, candidates: ${result.candidates?.join(',') || 'none'}`
   );
 }
 
@@ -218,10 +212,8 @@ async function ensureBootstrapMcpServersInDb(configFile: ConfigFile): Promise<vo
       imageServerToSync = updatedImageServer;
     }
   } else if (existingImageServer && imageEnvResolution.ok === false) {
-    console.warn(
-      '[Migration] skipped image MCP env update because provider could not be resolved, server id: %s, reason: %s',
-      existingImageServer.id,
-      imageEnvResolution.reason
+    migrationLog.warn(
+      `skipped image MCP env update because provider could not be resolved, server id: ${existingImageServer.id}, reason: ${imageEnvResolution.reason}`
     );
   }
 
@@ -234,13 +226,8 @@ async function ensureBootstrapMcpServersInDb(configFile: ConfigFile): Promise<vo
     await configFile.set('tools.imageGenerationModel', rest as ConfigKeyMap['tools.imageGenerationModel']);
   }
 
-  console.info(
-    '[Migration] MCP bootstrap completed, imported %d missing defaults, updated image server: %s, image config source: %s, image enabled: %s, synced image server: %s',
-    missing.length,
-    existingImageServer && imageEnvResolution.ok ? 'yes' : 'no',
-    imageConfigSource,
-    imageConfig?.switch === true ? 'yes' : 'no',
-    imageServerToSync ? 'yes' : 'no'
+  migrationLog.info(
+    `MCP bootstrap completed, imported ${missing.length} missing defaults, updated image server: ${existingImageServer && imageEnvResolution.ok ? 'yes' : 'no'}, image config source: ${imageConfigSource}, image enabled: ${imageConfig?.switch === true ? 'yes' : 'no'}, synced image server: ${imageServerToSync ? 'yes' : 'no'}`
   );
 }
 
@@ -267,9 +254,9 @@ export async function runBackendMigrations(configFile: ConfigFile): Promise<void
     const start = Date.now();
     try {
       await step.run();
-      console.info(`[AionUi] Backend migration step completed: ${step.name} (${Date.now() - start}ms)`);
+      log.info(`Backend migration step completed: ${step.name} (${Date.now() - start}ms)`);
     } catch (error) {
-      console.error(`[AionUi] Backend migration step failed: ${step.name} (${Date.now() - start}ms)`, error);
+      log.error(`Backend migration step failed: ${step.name} (${Date.now() - start}ms)`, error);
     }
   }, Promise.resolve());
 
@@ -280,13 +267,13 @@ export async function runBackendMigrations(configFile: ConfigFile): Promise<void
       const completed = await step.run(configFile);
       const elapsed = Date.now() - start;
       if (!completed) {
-        console.warn(`[AionUi] Backend migration step incomplete: ${step.name} (${elapsed}ms)`);
+        log.warn(`Backend migration step incomplete: ${step.name} (${elapsed}ms)`);
         return;
       }
-      console.info(`[AionUi] Backend migration step completed: ${step.name} (${elapsed}ms)`);
+      log.info(`Backend migration step completed: ${step.name} (${elapsed}ms)`);
     } catch (error) {
       const elapsed = Date.now() - start;
-      console.error(`[AionUi] Backend migration step failed: ${step.name} (${elapsed}ms)`, error);
+      log.error(`Backend migration step failed: ${step.name} (${elapsed}ms)`, error);
     }
   }, Promise.resolve());
 }

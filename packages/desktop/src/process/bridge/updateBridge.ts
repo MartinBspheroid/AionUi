@@ -19,6 +19,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import semver from 'semver';
 import { autoUpdaterService } from '../services/autoUpdaterService';
+import { createLogger } from '@/common/log';
+
+const log = createLogger('updateBridge');
 
 /** Lazily loads i18n to avoid pulling in initStorage chain at module load time */
 let _i18nCache: Promise<typeof import('../services/i18n')> | null = null;
@@ -469,11 +472,11 @@ const startDownloadInBackground = async (
       await assertAllowedUrl(fallbackUrl);
     } catch (err) {
       // Fallback URL itself is invalid — keep the primary failure result.
-      console.warn('[updateBridge] Fallback URL rejected by allowlist:', err);
+      log.warn('Fallback URL rejected by allowlist:', err);
       return primary;
     }
 
-    console.warn(`[updateBridge] Primary download failed (${primary.message}). Retrying with fallback URL.`);
+    log.warn(`Primary download failed (${primary.message}). Retrying with fallback URL.`);
     return attemptDownload(downloadId, fallbackUrl, file_path, abortController);
   };
 
@@ -660,7 +663,7 @@ export function initUpdateBridge(): void {
     try {
       autoUpdaterService.quitAndInstall();
     } catch (err: unknown) {
-      console.error('quitAndInstall failed:', err);
+      log.error('quitAndInstall failed:', err);
     }
   });
 }

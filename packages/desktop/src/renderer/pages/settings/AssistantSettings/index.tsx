@@ -17,7 +17,7 @@
  * still renders their skills panel so users can inspect what's bundled,
  * but every editing control (including Save) is disabled.
  */
-import { Message } from '@arco-design/web-react';
+import { useMessage } from '@/renderer/hooks/useMessage';
 import coworkSvg from '@/renderer/assets/icons/cowork.svg';
 import AionScrollArea from '@/renderer/components/base/AionScrollArea';
 import { useSettingsViewMode } from '@/renderer/components/settings/SettingsModal/settingsViewContext';
@@ -38,7 +38,7 @@ type AssistantNavigationState = {
 const OPEN_ASSISTANT_EDITOR_INTENT_KEY = 'guid.openAssistantEditorIntent';
 
 const AssistantSettings: React.FC = () => {
-  const [message, messageContext] = Message.useMessage({ maxCount: 10 });
+  const [message, messageContext] = useMessage({ maxCount: 10 });
   const viewMode = useSettingsViewMode();
   const isPageMode = viewMode === 'page';
   const location = useLocation();
