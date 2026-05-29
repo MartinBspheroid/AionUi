@@ -273,7 +273,7 @@ const ChatConversation: React.FC<{
           <OpenClawChat
             key={conversation.id}
             conversation_id={conversation.id}
-            workspace={conversation.extra?.workspace}
+            workspace={conversation.extra?.workspace ?? ''}
             cron_job_id={(conversation.extra as { cron_job_id?: string })?.cron_job_id}
             loadedSkills={(conversation.extra as { skills?: string[] } | undefined)?.skills}
           />
@@ -283,7 +283,7 @@ const ChatConversation: React.FC<{
           <NanobotChat
             key={conversation.id}
             conversation_id={conversation.id}
-            workspace={conversation.extra?.workspace}
+            workspace={conversation.extra?.workspace ?? ''}
             cron_job_id={(conversation.extra as { cron_job_id?: string })?.cron_job_id}
             loadedSkills={(conversation.extra as { skills?: string[] } | undefined)?.skills}
           />
@@ -293,7 +293,7 @@ const ChatConversation: React.FC<{
           <RemoteChat
             key={conversation.id}
             conversation_id={conversation.id}
-            workspace={conversation.extra?.workspace}
+            workspace={conversation.extra?.workspace ?? ''}
             cron_job_id={(conversation.extra as { cron_job_id?: string })?.cron_job_id}
             loadedSkills={(conversation.extra as { skills?: string[] } | undefined)?.skills}
           />
@@ -344,20 +344,20 @@ const ChatConversation: React.FC<{
     : isLoadingPreset
       ? {} // Still loading custom agents — avoid showing backend logo prematurely
       : {
+          // Note: 'aionrs' conversations are handled by an early return above,
+          // so they never reach this branch.
           backend:
             conversation?.type === 'acp'
               ? conversation?.extra?.backend
-              : conversation?.type === 'aionrs'
-                ? 'aionrs'
-                : conversation?.type === 'codex'
-                  ? 'codex'
-                  : conversation?.type === 'openclaw-gateway'
-                    ? 'openclaw-gateway'
-                    : conversation?.type === 'nanobot'
-                      ? 'nanobot'
-                      : conversation?.type === 'remote'
-                        ? 'remote'
-                        : undefined,
+              : conversation?.type === 'codex'
+                ? 'codex'
+                : conversation?.type === 'openclaw-gateway'
+                  ? 'openclaw-gateway'
+                  : conversation?.type === 'nanobot'
+                    ? 'nanobot'
+                    : conversation?.type === 'remote'
+                      ? 'remote'
+                      : undefined,
           agent_name: conversationAgentName,
         };
 

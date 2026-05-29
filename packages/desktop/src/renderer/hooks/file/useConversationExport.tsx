@@ -4,6 +4,7 @@ import type { TChatConversation } from '@/common/config/storage';
 import { Button } from '@arco-design/web-react';
 import type { SlashCommandMenuItem } from '@/renderer/components/chat/SlashCommandMenu';
 import { getConversationOrNull } from '@/renderer/pages/conversation/utils/conversationCache';
+import type { MessageInstance } from '@/renderer/hooks/useMessage';
 import {
   type ExportTranscriptLabels,
   buildConversationExportText,
@@ -14,21 +15,11 @@ import {
   resolveExportBaseDirectory,
 } from '@/renderer/utils/chat/conversationExport';
 import { copyText } from '@/renderer/utils/ui/clipboard';
-import React, {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type ReactNode,
-} from 'react';
+import React, { useCallback, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 
 type ExportFlowStep = 'closed' | 'menu' | 'filename';
 
-type MessageApi = {
-  success?: (content: ReactNode | { content: ReactNode; duration?: number }) => void;
-  error?: (content: ReactNode | { content: ReactNode; duration?: number }) => void;
-};
+type MessageApi = Pick<MessageInstance, 'success' | 'error'>;
 
 type UseConversationExportOptions = {
   conversation_id?: string;

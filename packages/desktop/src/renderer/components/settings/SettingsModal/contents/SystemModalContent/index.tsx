@@ -127,7 +127,7 @@ const SystemModalContent: React.FC = () => {
           });
       };
 
-      modal.confirm({
+      modal.confirm?.({
         title: t('settings.updateConfirm'),
         content: t('settings.hardwareAccelerationRestartConfirm'),
         onOk: apply,
@@ -314,7 +314,7 @@ const SystemModalContent: React.FC = () => {
 
   const saveDirConfigValidate = (_values: { workDir: string }): Promise<unknown> => {
     return new Promise((resolve, reject) => {
-      modal.confirm({
+      modal.confirm?.({
         title: t('settings.updateConfirm'),
         content: t('settings.restartConfirm'),
         onOk: resolve,

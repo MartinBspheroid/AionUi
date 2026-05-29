@@ -5,6 +5,7 @@
     "allowJs": true,
     "module": "esnext",
     "moduleResolution": "bundler",
+    "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "noImplicitAny": true,

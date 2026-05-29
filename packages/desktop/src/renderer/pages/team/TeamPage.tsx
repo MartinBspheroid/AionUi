@@ -1,4 +1,5 @@
 import { Message, Modal, Spin } from '@arco-design/web-react';
+import { useMessage } from '@/renderer/hooks/useMessage';
 import { CloseSmall, FullScreen, Left, OffScreen, Peoples, Right } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -157,7 +158,7 @@ const AgentChatSlot: React.FC<{
 const TeamPageContent: React.FC<TeamPageContentProps> = ({ team, onRenameTeam }) => {
   const { t } = useTranslation();
   const { agents, activeSlotId, statusMap, switchTab } = useTeamTabs();
-  const [, messageContext] = Message.useMessage({ maxCount: 1 });
+  const [, messageContext] = useMessage({ maxCount: 1 });
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const agentRefs = useRef<Record<string, HTMLDivElement | null>>({});

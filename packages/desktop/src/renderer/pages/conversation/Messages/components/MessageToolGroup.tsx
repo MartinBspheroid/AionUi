@@ -7,7 +7,8 @@
 import { ipcBridge } from '@/common';
 import type { IMessageToolGroup } from '@/common/chat/chatLib';
 import { iconColors } from '@/renderer/styles/colors';
-import { Alert, Button, Image, Message, Radio, Tag, Tooltip } from '@arco-design/web-react';
+import { Alert, Button, Image, Radio, Tag, Tooltip } from '@arco-design/web-react';
+import { useMessage } from '@/renderer/hooks/useMessage';
 import { Copy, Download, LoadingOne } from '@icon-park/react';
 import React, { useCallback, useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -212,7 +213,7 @@ const ConfirmationDetails: React.FC<{
             })}
           </Radio.Group>
           <div className='flex justify-start pl-20px'>
-            <Button type='primary' size='mini' disabled={!selected} onClick={() => onConfirm(selected)}>
+            <Button type='primary' size='mini' disabled={!selected} onClick={() => selected && onConfirm(selected)}>
               {t('messages.confirm')}
             </Button>
           </div>
@@ -228,7 +229,7 @@ const ImageDisplay: React.FC<{
   relativePath?: string;
 }> = ({ imgUrl, relativePath }) => {
   const { t } = useTranslation();
-  const [messageApi, messageContext] = Message.useMessage();
+  const [messageApi, messageContext] = useMessage();
   const [imageUrl, setImageUrl] = useState<string>(imgUrl);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);

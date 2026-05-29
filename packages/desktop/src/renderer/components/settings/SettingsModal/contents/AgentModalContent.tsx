@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Tabs, Message } from '@arco-design/web-react';
+import { Tabs } from '@arco-design/web-react';
+import { useMessage } from '@/renderer/hooks/useMessage';
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -15,7 +16,7 @@ import { useSettingsViewMode } from '../settingsViewContext';
 
 const AgentModalContent: React.FC = () => {
   const { t } = useTranslation();
-  const [agentMessage, agentMessageContext] = Message.useMessage({ maxCount: 10 });
+  const [agentMessage, agentMessageContext] = useMessage({ maxCount: 10 });
   const viewMode = useSettingsViewMode();
   const isPageMode = viewMode === 'page';
   const [searchParams, setSearchParams] = useSearchParams();

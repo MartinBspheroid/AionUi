@@ -1,5 +1,5 @@
 import { ipcBridge } from '@/common';
-import type { Message } from '@arco-design/web-react';
+import type { MessageInstance } from '@/renderer/hooks/useMessage';
 import type { Assistant, CreateAssistantRequest, UpdateAssistantRequest } from '@/common/types/agent/assistantTypes';
 import type {
   AssistantListItem,
@@ -17,7 +17,7 @@ type UseAssistantEditorParams = {
   setActiveAssistantId: (id: string | null) => void;
   loadAssistants: () => Promise<void>;
   refreshAgentDetection: () => Promise<void>;
-  message: ReturnType<typeof Message.useMessage>[0];
+  message: MessageInstance;
 };
 
 const isBuiltinAssistant = (assistant: Assistant | null | undefined): boolean => assistant?.source === 'builtin';

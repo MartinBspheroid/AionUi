@@ -8,6 +8,7 @@
  * Shared i18n utility functions used by both main process and renderer.
  */
 
+import type { i18n as I18nInstance } from 'i18next';
 import i18nConfig from '@/common/config/i18n-config.json';
 
 export const SUPPORTED_LANGUAGES = i18nConfig.supportedLanguages;
@@ -77,11 +78,7 @@ export type LocaleData = Record<string, Record<string, unknown>>;
  * Deduplicates the "load-if-missing + changeLanguage" pattern.
  */
 export async function ensureAndSwitch(
-  i18n: {
-    hasResourceBundle: (lng: string, ns: string) => boolean;
-    addResourceBundle: (...args: unknown[]) => void;
-    changeLanguage: (lng: string) => Promise<unknown>;
-  },
+  i18n: Pick<I18nInstance, 'hasResourceBundle' | 'addResourceBundle' | 'changeLanguage'>,
   lang: string,
   getTranslation: (locale: string) => Record<string, unknown> | Promise<Record<string, unknown>>
 ): Promise<void> {

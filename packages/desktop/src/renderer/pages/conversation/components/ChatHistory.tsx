@@ -26,7 +26,7 @@ const useTimeline = () => {
   return createTimelineGrouper(t);
 };
 
-const useScrollIntoView = (id: string) => {
+const useScrollIntoView = (id: string | undefined) => {
   useEffect(() => {
     if (!id) return;
     const el = document.getElementById('c-' + id);

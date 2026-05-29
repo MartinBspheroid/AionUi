@@ -34,6 +34,7 @@ import { useConversationExport } from '@renderer/hooks/file/useConversationExpor
 import { useDragUpload } from '@renderer/hooks/file/useDragUpload';
 import { useLatestRef } from '@renderer/hooks/ui/useLatestRef';
 import { usePasteService } from '@renderer/hooks/file/usePasteService';
+import { useMessage } from '@/renderer/hooks/useMessage';
 import { useMessageList } from '@renderer/pages/conversation/Messages/hooks';
 import type { FileMetadata } from '@renderer/services/FileService';
 import { useUploadState } from '@renderer/hooks/file/useUploadState';
@@ -378,7 +379,7 @@ const SendBox: React.FC<{
   // Bind sendbox uploads to the current conversation's lifecycle: switching
   // conversations or unmounting the SendBox aborts anything still in flight.
   useAbortUploadsOnConversationChange(conversationContext?.conversation_id, 'sendbox');
-  const [message, context] = Message.useMessage();
+  const [message, context] = useMessage();
   const conversationExport = useConversationExport({
     conversation_id: conversationContext?.conversation_id,
     workspace: conversationContext?.workspace,

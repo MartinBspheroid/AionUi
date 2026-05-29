@@ -53,11 +53,13 @@ export function normalizeToolGroup(message: IMessageToolGroup): NormalizedToolCa
   if (!Array.isArray(message.content)) return [];
   return message.content.map(({ name, call_id, description, confirmationDetails, status, result_display }) => {
     let desc = typeof description === 'string' ? description.slice(0, 100) : '';
-    const type = confirmationDetails?.type;
-    if (type === 'edit') desc = confirmationDetails.file_name;
-    if (type === 'exec') desc = confirmationDetails.command;
-    if (type === 'info') desc = confirmationDetails.urls?.join(';') || confirmationDetails.title;
-    if (type === 'mcp') desc = confirmationDetails.server_name + ':' + confirmationDetails.tool_name;
+    if (confirmationDetails) {
+      const type = confirmationDetails.type;
+      if (type === 'edit') desc = confirmationDetails.file_name;
+      if (type === 'exec') desc = confirmationDetails.command;
+      if (type === 'info') desc = confirmationDetails.urls?.join(';') || confirmationDetails.title;
+      if (type === 'mcp') desc = confirmationDetails.server_name + ':' + confirmationDetails.tool_name;
+    }
 
     let input: string | undefined;
     if (confirmationDetails) {

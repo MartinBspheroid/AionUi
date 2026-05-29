@@ -296,7 +296,7 @@ const AionModal: React.FC<AionModalProps> = ({
             </Button>
             <Button
               type='primary'
-              onClick={props.onOk}
+              onClick={(e) => props.onOk?.(e as unknown as MouseEvent)}
               loading={props.confirmLoading}
               className='px-20px min-w-80px'
               style={{ borderRadius: 8 }}

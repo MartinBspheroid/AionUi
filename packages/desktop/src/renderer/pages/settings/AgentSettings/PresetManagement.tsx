@@ -1,5 +1,5 @@
 import { Button, Collapse, Modal, Input, Typography } from '@arco-design/web-react';
-import type { Message } from '@arco-design/web-react';
+import type { MessageInstance } from '@/renderer/hooks/useMessage';
 import { EditTwo, Delete, Lightning } from '@icon-park/react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -13,7 +13,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { useThemeContext } from '@/renderer/hooks/context/ThemeContext';
 
 interface PresetManagementProps {
-  message: ReturnType<typeof Message.useMessage>[0];
+  message: MessageInstance;
 }
 
 const PresetManagement: React.FC<PresetManagementProps> = ({ message }) => {

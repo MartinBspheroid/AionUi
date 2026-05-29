@@ -14,7 +14,7 @@ import { CUSTOM_AVATAR_IMAGE_MAP } from '../constants';
 import styles from '../index.module.css';
 import type { AvailableAgent, EffectiveAgentInfo } from '../types';
 import type { Assistant } from '@/common/types/agent/assistantTypes';
-import { Message } from '@arco-design/web-react';
+import { useMessage } from '@/renderer/hooks/useMessage';
 import { Plus, Robot } from '@icon-park/react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { resolveExtensionAssetUrl } from '@/renderer/utils/platform';
@@ -58,7 +58,7 @@ const AssistantSelectionArea: React.FC<AssistantSelectionAreaProps> = ({
 }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [agentMessage, agentMessageContext] = Message.useMessage({ maxCount: 10 });
+  const [agentMessage, agentMessageContext] = useMessage({ maxCount: 10 });
 
   const avatarImageMap: Record<string, string> = useMemo(
     () => ({
