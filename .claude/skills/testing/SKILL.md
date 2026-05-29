@@ -91,7 +91,7 @@ bun run test:coverage     # Check coverage (before opening a PR)
 
 ### Step 4: Verify Coverage
 
-**Coverage target**: ≥ 80% for all source files matched by `vitest.config.ts` → `coverage.include` (currently `src/**/*.{ts,tsx}` plus a few scripts).
+**Coverage model**: global coverage is **ratcheted**, not held to a fixed bar. `vitest.config.ts` sets threshold floors just below the current measured level (~13% lines today) and CI fails if coverage drops below them. The long-term goal is 80% — raise the floors as coverage climbs, never lower them. What matters per-PR is **patch coverage**: new/changed lines must be ≥ 50% covered (enforced via `codecov.yml`). Coverage is measured over all source files matched by `vitest.config.ts` → `coverage.include` (currently `src/**/*.{ts,tsx}` plus a few scripts).
 
 New source files are automatically included in coverage — no manual config changes needed. If a new file is accidentally excluded by a rule in `coverage.exclude`, remove it from the exclude list.
 
@@ -125,7 +125,7 @@ Before submitting code:
 - [ ] Tests describe **behavior**, not implementation
 - [ ] At least one failure path per describe block
 - [ ] New source files are not accidentally excluded by `coverage.exclude`
-- [ ] `bun run test:coverage` meets ≥ 80% target
+- [ ] `bun run test:coverage` passes (stays at/above the ratchet floor) and changed lines are ≥ 50% covered
 
 ## Common Mistakes
 

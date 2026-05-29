@@ -6,22 +6,27 @@ coverage:
   precision: 2
   round: down
   range: '0...100'
+  status:
+    # Global project coverage is ratcheted by the Vitest thresholds in
+    # vitest.config.ts (which fail CI on regression). Keep the Codecov project
+    # status informational to avoid a second, noisier gate on the same signal.
+    project:
+      default:
+        target: auto
+        threshold: 1%
+        informational: true
+    # Patch coverage IS enforced: new/changed lines must be tested. This is how
+    # overall coverage ramps toward the 80% goal without a flag-day rewrite.
+    patch:
+      default:
+        target: 50%
+        threshold: 0%
+        informational: false
 
 comment:
   layout: 'reach,diff,flags,files'
   behavior: default
   require_changes: false
-
-status:
-  project:
-    default:
-      target: auto
-      threshold: 1%
-      informational: true
-  patch:
-    default:
-      target: 50%
-      informational: true
 
 ignore:
   - 'tests/**'
@@ -38,6 +43,7 @@ ignore:
   - 'packages/desktop/src/renderer/**/*.css'
   - 'scripts/**'
   - 'examples/**'
+  - 'mobile/**'
   - 'resources/**'
   - 'skills/**'
   - 'assistant/**'

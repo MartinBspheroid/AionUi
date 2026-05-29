@@ -65,7 +65,9 @@ See [docs/architecture/overview.md](docs/architecture/overview.md) for details.
 
 ## Testing
 
-**Framework**: Vitest 4 (`vitest.config.ts`). Coverage target ≥ 80%.
+**Framework**: Vitest 4 (`vitest.config.ts`).
+
+**Coverage**: global coverage is currently ~13% (lines) and is **ratcheted** — `vitest.config.ts` sets threshold floors just below the current level, and CI fails if coverage drops below them. The long-term goal is 80%; raise the floors as coverage climbs, never lower them. New/changed code is held to a higher bar: **patch coverage ≥ 50%** is enforced via Codecov (`codecov.yml`), so every PR must test the lines it touches.
 
 ```bash
 bun run test              # run all tests

@@ -81,13 +81,16 @@ export default defineConfig({
         // i18n config (JSON-only)
         'packages/desktop/src/common/config/i18n-config.json',
       ],
-      // Thresholds apply to the included file set.
-      // Keeping them informational until coverage ramps up across all files.
+      // RATCHET floor: set a margin below the current measured coverage
+      // (stmts ~12.5 / branch ~9.3 / funcs ~10.4 / lines ~12.8) to catch real
+      // regressions while tolerating the small run-to-run variance of v8
+      // coverage. Raise these as coverage ramps toward the 80% goal — never
+      // lower them.
       thresholds: {
-        statements: 0,
-        branches: 0,
-        functions: 0,
-        lines: 0,
+        statements: 11,
+        branches: 8,
+        functions: 9,
+        lines: 11,
       },
     },
   },
