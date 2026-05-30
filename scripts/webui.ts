@@ -24,6 +24,7 @@ import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { startWebHost } from '@aionui/web-host';
+import { createHermesApiHandler } from '../packages/desktop/src/process/hermes/hermesWebuiApi';
 
 // Aligned with packages/desktop/src/common/config/constants.ts WEBUI_DEFAULT_PORT.
 const DEFAULT_PORT = (() => {
@@ -35,6 +36,17 @@ const BACKEND_BINARY = process.platform === 'win32' ? 'aioncore.exe' : 'aioncore
 
 const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(__filename), '..');
+
+/**
+ * Resolve HERMES_HOME for the Hermes-agent API bridge.
+ *   $HERMES_HOME          env override (highest priority)
+ *   otherwise             ~/.hermes  (the hermes-agent default)
+ */
+function resolveHermesHome(): string {
+  const env = process.env.HERMES_HOME?.trim();
+  if (env) return env;
+  return path.join(os.homedir(), '.hermes');
+}
 
 const args = process.argv.slice(2);
 const has = (name: string): boolean => args.includes(name);
@@ -239,7 +251,13 @@ async function main(): Promise<void> {
       kind: 'ownBackend',
       resolveBackend: () => backendBin,
     },
+    // Bridge the Hermes-agent settings endpoints (/api/agents/hermes/*) that
+    // aioncore does not serve, reading the real HERMES_HOME. Tried before the
+    // aioncore proxy; falls through for every other /api/* path.
+    localApiHandlers: [createHermesApiHandler({ hermesHome: resolveHermesHome() })],
   });
+
+  console.log('[webui] hermes home :', resolveHermesHome());
 
   console.log('');
   console.log('AionUi WebUI is ready');

@@ -14,11 +14,22 @@ import { networkInterfaces } from 'node:os';
 import net, { type Socket } from 'node:net';
 import serveHandler from 'serve-handler';
 
+/**
+ * A local request handler tried BEFORE the reverse-proxy fallback. Return
+ * `true` (or a resolved `true`) to indicate the request was fully handled
+ * (response written); return `false` to let routing fall through to the
+ * backend proxy / static serving. web-host itself stays generic — callers
+ * inject domain-specific handlers (e.g. a Hermes-agent bridge) via options.
+ */
+export type LocalApiHandler = (req: IncomingMessage, res: ServerResponse) => boolean | Promise<boolean>;
+
 export type StaticServerOptions = {
   staticDir: string;
   backendPort: number;
   port?: number;
   allowRemote?: boolean;
+  /** Optional handlers tried before the backend proxy (first to return true wins). */
+  localApiHandlers?: LocalApiHandler[];
 };
 
 export type StaticServerHandle = {
@@ -135,6 +146,18 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
       if (!req.url || !req.method) {
         res.writeHead(400).end();
         return;
+      }
+
+      // Local API handlers run first (e.g. the Hermes-agent bridge). The first
+      // handler to return true owns the response; otherwise we fall through to
+      // the backend proxy. Handlers must only claim paths the backend does not
+      // serve, so this never shadows real aioncore routes.
+      if (opts.localApiHandlers && opts.localApiHandlers.length > 0) {
+        for (const handler of opts.localApiHandlers) {
+          // eslint-disable-next-line no-await-in-loop -- handlers are ordered; first match wins
+          const handled = await handler(req, res);
+          if (handled) return;
+        }
       }
 
       // /api/* — reverse proxy to backend (includes /api/auth/*).

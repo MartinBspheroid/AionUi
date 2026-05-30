@@ -1,5 +1,7 @@
 // Core types for @aionui/web-host (M3 interface contract, locked for M4-M8)
 
+import type { LocalApiHandler } from './static-server.js';
+
 /**
  * App metadata injected by host environment (Electron or Node)
  */
@@ -39,6 +41,8 @@ export type WebHostOptions = {
   logDir?: string;
   dirs?: BackendSystemDirs;
   backend: { kind: 'ownBackend'; resolveBackend: BackendBinaryResolver } | { kind: 'useExistingBackend'; port: number };
+  /** Optional local request handlers tried before the backend proxy. */
+  localApiHandlers?: LocalApiHandler[];
 };
 
 /**
