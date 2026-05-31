@@ -13,6 +13,7 @@ import {
   Info,
   Lightning,
   LinkCloud,
+  MindmapList,
   Puzzle,
   Robot,
   System,
@@ -67,11 +68,21 @@ export function getBuiltinSettingsNavItems(isDesktop: boolean, t: TranslateFn): 
       path: 'webui',
     },
     pet: { id: 'pet', label: t('pet.desktopPet'), icon: <Cat theme='outline' size='16' />, path: 'pet' },
+    hermes: {
+      id: 'hermes',
+      label: t('settings.hermes.title', { defaultValue: 'Hermes' }),
+      icon: <MindmapList theme='outline' size='16' />,
+      path: 'hermes',
+    },
     system: { id: 'system', label: t('settings.system'), icon: <System theme='outline' size='16' />, path: 'system' },
     about: { id: 'about', label: t('settings.about'), icon: <Info theme='outline' size='16' />, path: 'about' },
   };
 
-  return BUILTIN_TAB_IDS.map((id) => builtinMap[id]);
+  // Filter undefined defensively: a tab id present in BUILTIN_TAB_IDS but missing
+  // from builtinMap would otherwise inject `undefined` into the nav list and crash
+  // the menuItems memo (item.id on undefined). Keeps the two lists from silently
+  // diverging again.
+  return BUILTIN_TAB_IDS.map((id) => builtinMap[id]).filter((item): item is NavItem => Boolean(item));
 }
 
 const SettingsPageWrapper: React.FC<SettingsPageWrapperProps> = ({ children, className, contentClassName }) => {
